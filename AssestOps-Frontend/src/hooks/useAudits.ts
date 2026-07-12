@@ -53,7 +53,7 @@ export function useAudits() {
     try {
       const data = await api.get<AuditCycle[]>("/audits")
       setCycles(data)
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || "Failed to fetch audit cycles")
     } finally {
       setLoading(false)
@@ -66,7 +66,7 @@ export function useAudits() {
     try {
       await api.post("/audits", payload)
       return true
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || "Failed to launch audit cycle")
       return false
     } finally {
@@ -80,7 +80,7 @@ export function useAudits() {
     try {
       const data = await api.get<AuditItem[]>(`/audits/${cycleId}/items`)
       setItems(data)
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || "Failed to fetch audit items")
     } finally {
       setLoading(false)
@@ -94,7 +94,7 @@ export function useAudits() {
       const updated = await api.patch<AuditItem>(`/audits/items/${itemId}`, payload)
       setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...updated } : i)))
       return true
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || "Failed to verify audit item")
       return false
     } finally {
@@ -111,7 +111,7 @@ export function useAudits() {
         prev.map((c) => (c.id === cycleId ? { ...c, status: "Closed", closedAt: new Date().toISOString() } : c))
       )
       return true
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || "Failed to close audit cycle")
       return false
     } finally {
