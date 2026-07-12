@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Booking, MaintenanceTicket, SystemNotification } from '../types'
-import { useAssets } from './useAssests'
+import { useAssets } from './useAssets'
 import { useAllocationTransfer } from './useAllocationTransfer'
 
 export function useAppState() {
