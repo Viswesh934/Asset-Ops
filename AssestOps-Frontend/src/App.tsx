@@ -14,10 +14,25 @@ import Audit from './pages/Audit'
 import Reports from './pages/Reports'
 import Notifications from './pages/Notifications'
 import type { Asset, Booking, MaintenanceTicket, TransferRequest, SystemNotification } from './types'
+import { routes } from "./routes"
+
+import Login from "./pages/Login"
 
 function App() {
+  // Authentication State
+  const [token, setToken] = useState<string | null>(localStorage.getItem("token"))
+  const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem("userEmail"))
+
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("userEmail")
+    setToken(null)
+    setUserEmail(null)
+  }
+
   // Navigation State
-  const [activeTab, setActiveTab] = useState<string>('Dashboard')
+  const [currentPath, setCurrentPath] = useState<string>("/dashboard")
+  const activeRoute = routes.find(r => r.path === currentPath) || routes[0]
 
   // Interactive Data States
   const [assets, setAssets] = useState<Asset[]>([
@@ -165,23 +180,38 @@ function App() {
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length
 
+  if (!token) {
+    return (
+      <Login 
+        onLoginSuccess={(tok, email) => {
+          setToken(tok)
+          setUserEmail(email)
+        }} 
+      />
+    )
+  }
+
   return (
     <div className="app-container">
       {/* 1. SIDEBAR NAVIGATION */}
       <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        currentPath={currentPath}
+        onNavigate={setCurrentPath}
         unreadCount={unreadNotificationsCount}
       />
 
       {/* 2. MAIN CONTENT VIEWPORT */}
       <main className="main-content">
         {/* TOP BAR / HEADER */}
-        <Header activeTab={activeTab} />
+        <Header 
+          activeTab={activeRoute.title} 
+          userEmail={userEmail}
+          onLogout={handleLogout}
+        />
 
         {/* PAGE CONTENT SWITCH */}
         <div className="page-container">
-          {activeTab === 'Dashboard' && (
+          {currentPath === '/dashboard' && (
             <Dashboard
               availableCount={availableCount}
               allocatedCount={allocatedCount}
@@ -190,48 +220,51 @@ function App() {
               upcomingReturnsCount={upcomingReturnsCount}
               totalAssetsCount={totalAssetsCount}
               inRepairCount={inRepairCount}
-              onTabChange={setActiveTab}
+              onTabChange={(tabTitle) => {
+                const target = routes.find(r => r.title === tabTitle)
+                if (target) setCurrentPath(target.path)
+              }}
               onOpenRegister={() => setShowRegisterModal(true)}
               onOpenBook={() => setShowBookModal(true)}
               onOpenRequest={() => setShowRequestModal(true)}
             />
           )}
 
-          {activeTab === 'Organization setup' && <OrgSetup />}
+          {currentPath === '/org-setup' && <OrgSetup />}
 
-          {activeTab === 'Assets' && (
+          {currentPath === '/assets' && (
             <Assets
               assets={assets}
               onOpenRegister={() => setShowRegisterModal(true)}
             />
           )}
 
-          {activeTab === 'Allocation & Transfer' && (
+          {currentPath === '/allocation-transfer' && (
             <AllocationTransfer
               transfers={transfers}
               onOpenRequest={() => setShowRequestModal(true)}
             />
           )}
 
-          {activeTab === 'Resource Booking' && (
+          {currentPath === '/resource-booking' && (
             <ResourceBooking
               bookings={bookings}
               onOpenBook={() => setShowBookModal(true)}
             />
           )}
 
-          {activeTab === 'Maintenance' && (
+          {currentPath === '/maintenance' && (
             <Maintenance
               maintenance={maintenance}
               onResolve={resolveMaintenance}
             />
           )}
 
-          {activeTab === 'Audit' && <Audit />}
+          {currentPath === '/audit' && <Audit />}
 
-          {activeTab === 'Reports' && <Reports />}
+          {currentPath === '/reports' && <Reports />}
 
-          {activeTab === 'Notifications' && (
+          {currentPath === '/notifications' && (
             <Notifications
               notifications={notifications}
               onMarkAllAsRead={markAllNotificationsRead}
