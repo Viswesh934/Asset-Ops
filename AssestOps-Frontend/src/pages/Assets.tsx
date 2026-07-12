@@ -25,14 +25,11 @@ import { uploadAssetFile } from "../utils/upload"
 export default function Assets() {
   const {
     loading,
-    error,
     assets,
-    categories,
     selectedAssetDetail,
     fetchAssets,
-    fetchCategories,
     fetchAssetDetails,
-    registerAsset,
+    fetchCategories,
   } = useAssets()
 
   const [search, setSearch] = useState("")
@@ -70,13 +67,7 @@ export default function Assets() {
     setDetailTab("allocations")
   }
 
-  const handleRegisterSubmit = async (assetData: any) => {
-    const success = await registerAsset(assetData)
-    if (success) {
-      fetchAssets({ search, category: selectedCategory, status: selectedStatus })
-    }
-    return success
-  }
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -374,131 +365,135 @@ export default function Assets() {
               <div className="space-y-4 min-h-[160px]">
                 {detailTab === "allocations" && (
                   <div className="space-y-3">
-                    {selectedAssetDetail.history?.length === 0 || !selectedAssetDetail.history ? (
-                      <p className="text-center text-sm text-slate-500 py-8">No allocation records for this asset.</p>
-                    ) : (
-                      selectedAssetDetail.history.map((alloc: any) => (
-                        <div key={alloc.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-start justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-white">
-                              {alloc.targetType === "Employee" ? "Employee Allocation" : "Department Allocation"}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                              <Clock size={11} /> {new Date(alloc.allocatedDate).toLocaleDateString()}
-                              {alloc.actualReturnDate && ` - ${new Date(alloc.actualReturnDate).toLocaleDateString()}`}
-                            </p>
-                          </div>
-                          <Badge
-                            className={`${alloc.status === "Active"
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-slate-500/10 text-slate-400"
-                              }`}
-                          >
-                            {alloc.status}
-                          </Badge>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-
-                {detailTab === "maintenance" && (
-                  <div className="space-y-3">
-                    {(!selectedAssetDetail.maintenanceHistory || selectedAssetDetail.maintenanceHistory.length === 0) ? (
-                      <p className="text-center text-sm text-slate-500 py-8">No maintenance tickets logged.</p>
-                    ) : (
-                      selectedAssetDetail.maintenanceHistory.map((ticket) => (
-                        <div key={ticket.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-white">{ticket.issueDescription}</span>
+                    {
+                      selectedAssetDetail.history?.length === 0 || !selectedAssetDetail.history ? (
+                        <p className="text-center text-sm text-slate-500 py-8">No allocation records for this asset.</p>
+                      ) : (
+                        selectedAssetDetail.history.map((alloc) => (
+                          <div key={alloc.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {alloc.targetType === "Employee" ? "Employee Allocation" : "Department Allocation"}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                                <Clock size={11} /> {new Date(alloc.allocatedDate).toLocaleDateString()}
+                                {alloc.actualReturnDate && ` - ${new Date(alloc.actualReturnDate).toLocaleDateString()}`}
+                              </p>
+                            </div>
                             <Badge
-                              className={`${ticket.status === "Resolved"
+                              className={`${alloc.status === "Active"
                                 ? "bg-emerald-500/10 text-emerald-400"
-                                : "bg-orange-500/10 text-orange-400"
+                                : "bg-slate-500/10 text-slate-400"
                                 }`}
                             >
-                              {ticket.status}
+                              {alloc.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-slate-500 mt-1">Priority: {ticket.priority}</p>
-                          {ticket.resolutionNotes && (
-                            <p className="text-xs text-slate-400 mt-2 bg-black/20 p-2 rounded-lg border border-white/[0.04]">
-                              Resolution: {ticket.resolutionNotes}
-                            </p>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
+                        ))
+                      )
+                    }
+                  </div >
+                )
+                }
 
-                {detailTab === "attachments" && (
-                  <div className="space-y-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*,.pdf,.doc,.docx"
-                      onChange={handleFileUpload}
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className="w-full py-3 border-2 border-dashed border-white/[0.1] rounded-xl text-sm text-slate-400 hover:border-orange-500/40 hover:text-orange-400 transition-all flex items-center justify-center gap-2"
-                    >
-                      {uploading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                          Uploading...
-                        </>
+                {
+                  detailTab === "maintenance" && (
+                    <div className="space-y-3">
+                      {(!selectedAssetDetail.maintenanceHistory || selectedAssetDetail.maintenanceHistory.length === 0) ? (
+                        <p className="text-center text-sm text-slate-500 py-8">No maintenance tickets logged.</p>
                       ) : (
-                        <>
-                          <Upload size={14} /> Upload Photo or Document
-                        </>
-                      )}
-                    </button>
-                    {(!selectedAssetDetail.attachments || selectedAssetDetail.attachments.length === 0) ? (
-                      <p className="text-center text-sm text-slate-500 py-4">No files uploaded yet.</p>
-                    ) : (
-                      selectedAssetDetail.attachments.map((att) => (
-                        <div key={att.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <File size={16} className="text-slate-400" />
-                            <div>
-                              <p className="text-sm font-medium text-white">{att.fileName || "Unnamed file"}</p>
-                              <p className="text-xs text-slate-500">{att.fileType || "Unknown type"}</p>
+                        selectedAssetDetail.maintenanceHistory.map((ticket) => (
+                          <div key={ticket.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-white">{ticket.issueDescription}</span>
+                              <Badge
+                                className={`${ticket.status === "Resolved"
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : "bg-orange-500/10 text-orange-400"
+                                  }`}
+                              >
+                                {ticket.status}
+                              </Badge>
                             </div>
+                            <p className="text-xs text-slate-500 mt-1">Priority: {ticket.priority}</p>
+                            {ticket.resolutionNotes && (
+                              <p className="text-xs text-slate-400 mt-2 bg-black/20 p-2 rounded-lg border border-white/[0.04]">
+                                Resolution: {ticket.resolutionNotes}
+                              </p>
+                            )}
                           </div>
-                          {att.signedUrl && (
-                            <a
-                              href={att.signedUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white rounded-lg text-xs font-semibold transition-all"
-                            >
-                              View
-                            </a>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+                        ))
+                      )}
+                    </div>
+                  )
+                }
+
+                {
+                  detailTab === "attachments" && (
+                    <div className="space-y-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        accept="image/*,.pdf,.doc,.docx"
+                        onChange={handleFileUpload}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full py-3 border-2 border-dashed border-white/[0.1] rounded-xl text-sm text-slate-400 hover:border-orange-500/40 hover:text-orange-400 transition-all flex items-center justify-center gap-2"
+                      >
+                        {uploading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={14} /> Upload Photo or Document
+                          </>
+                        )}
+                      </button>
+                      {(!selectedAssetDetail.attachments || selectedAssetDetail.attachments.length === 0) ? (
+                        <p className="text-center text-sm text-slate-500 py-4">No files uploaded yet.</p>
+                      ) : (
+                        selectedAssetDetail.attachments.map((att) => (
+                          <div key={att.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <File size={16} className="text-slate-400" />
+                              <div>
+                                <p className="text-sm font-medium text-white">{att.fileName || "Unnamed file"}</p>
+                                <p className="text-xs text-slate-500">{att.fileType || "Unknown type"}</p>
+                              </div>
+                            </div>
+                            {att.signedUrl && (
+                              <a
+                                href={att.signedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white rounded-lg text-xs font-semibold transition-all"
+                              >
+                                View
+                              </a>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )
+                }
+              </div >
+            </div >
           )}
-        </SheetContent>
-      </Sheet>
+        </SheetContent >
+      </Sheet >
 
       {/* Register Asset Dialog */}
-      <RegisterAssetModal
+      < RegisterAssetModal
         isOpen={isRegisterOpen}
         onClose={() => setIsRegisterOpen(false)}
-        categories={categories}
-        onRegister={handleRegisterSubmit}
-        loading={loading}
-        error={error}
+        onSuccess={() => fetchAssets({ search, category: selectedCategory, status: selectedStatus })}
       />
-    </div>
+    </div >
   )
 }
