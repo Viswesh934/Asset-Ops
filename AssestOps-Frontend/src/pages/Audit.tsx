@@ -10,11 +10,14 @@ import {
   Check,
   X,
   Lock,
+  Users,
 } from "lucide-react"
 import { useAudits } from "../hooks/useAudits"
 import { api } from "../utils/api"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog"
+import { MultiSelectCombobox } from "../components/ui/multi-select-combobox"
 
 export default function Audit() {
   const {
@@ -36,7 +39,6 @@ export default function Audit() {
   const [flagResult, setFlagResult] = useState<"Missing" | "Damaged">("Missing")
   const [flagNotes, setFlagNotes] = useState("")
 
-  // Form states for launching cycle
   const [name, setName] = useState("")
   const [scopeDepartmentId, setScopeDepartmentId] = useState("")
   const [scopeLocation, setScopeLocation] = useState("")
@@ -44,11 +46,9 @@ export default function Audit() {
   const [endDate, setEndDate] = useState("")
   const [selectedAuditors, setSelectedAuditors] = useState<string[]>([])
 
-  // Options loaded from backend
   const [users, setUsers] = useState<{ id: string; username: string }[]>([])
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
 
-  // Search & filter for audit items in workspace
   const [itemSearch, setItemSearch] = useState("")
   const [itemFilter, setItemFilter] = useState("All")
 
@@ -58,8 +58,10 @@ export default function Audit() {
 
   const loadLaunchOptions = useCallback(async () => {
     try {
-      const usersData = await api.get<[]>("/users")
-      const deptsData = await api.get<[]>("/departments")
+      const [usersData, deptsData] = await Promise.all([
+        api.get<{ id: string; username: string }[]>("/users"),
+        api.get<{ id: string; name: string }[]>("/departments"),
+      ])
       setUsers(usersData)
       setDepartments(deptsData)
     } catch (err) {
@@ -86,15 +88,19 @@ export default function Audit() {
     })
 
     if (success) {
-      setName("")
-      setScopeDepartmentId("")
-      setScopeLocation("")
-      setStartDate("")
-      setEndDate("")
-      setSelectedAuditors([])
+      resetLaunchForm()
       setIsLaunchOpen(false)
       fetchCycles()
     }
+  }
+
+  const resetLaunchForm = () => {
+    setName("")
+    setScopeDepartmentId("")
+    setScopeLocation("")
+    setStartDate("")
+    setEndDate("")
+    setSelectedAuditors([])
   }
 
   const handleSelectCycle = async (id: string) => {
@@ -139,18 +145,18 @@ export default function Audit() {
 
   const activeCycle = cycles.find((c) => c.id === activeCycleId)
 
-  // Calculations for active cycle stats
   const totalItems = items.length
   const verifiedItems = items.filter((i) => i.result === "Verified").length
   const missingItems = items.filter((i) => i.result === "Missing").length
   const damagedItems = items.filter((i) => i.result === "Damaged").length
   const pendingItems = items.filter((i) => i.result === "Pending").length
-
   const completionPercent = totalItems ? Math.round((verifiedItems / totalItems) * 100) : 0
+
+  const auditorOptions = users.map((u) => ({ label: u.username, value: u.id }))
 
   return (
     <div className="space-y-6">
-      {/* Workspace Back Button & Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Physical Inventory Audits</h1>
@@ -181,7 +187,7 @@ export default function Audit() {
         </div>
       )}
 
-      {/* ── SCREEN A: AUDIT LISTINGS VIEW ── */}
+      {/* ── SCREEN A: AUDIT LISTINGS ── */}
       {!activeCycleId ? (
         <div className="grid grid-cols-1 gap-6">
           {loading && cycles.length === 0 ? (
@@ -224,7 +230,6 @@ export default function Audit() {
                     )}
                   </div>
                 </div>
-
                 <div className="flex items-center gap-6">
                   {cyc.status === "Closed" ? (
                     <div className="text-right">
@@ -248,9 +253,9 @@ export default function Audit() {
           )}
         </div>
       ) : (
-        /* ── SCREEN B: ACTIVE RUNNER WORKSPACE ── */
+        /* ── SCREEN B: ACTIVE WORKSPACE ── */
         <div className="space-y-6 animate-fadeIn">
-          {/* Progress Strip & Details */}
+          {/* Progress Strip */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-2xl">
             <div className="lg:col-span-2 space-y-3">
               <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Audit Overview</p>
@@ -275,8 +280,6 @@ export default function Audit() {
                 </div>
               </div>
             </div>
-
-            {/* Counts */}
             <div className="grid grid-cols-2 lg:col-span-2 gap-3">
               <div className="p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-center">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Verified</p>
@@ -303,7 +306,7 @@ export default function Audit() {
             </div>
           </div>
 
-          {/* Search, Filter & Auditor Checklist Table */}
+          {/* Search & Filter */}
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white/[0.01] border border-white/[0.05] rounded-2xl">
               <div className="flex flex-1 items-center gap-3 bg-white/[0.03] border border-white/[0.08] px-3.5 py-2 rounded-xl max-w-sm">
@@ -316,7 +319,6 @@ export default function Audit() {
                   onChange={(e) => setItemSearch(e.target.value)}
                 />
               </div>
-
               <div className="flex bg-white/[0.03] border border-white/[0.08] p-1 rounded-xl">
                 {["All", "Pending", "Verified", "Missing", "Damaged"].map((filter) => (
                   <button
@@ -332,6 +334,7 @@ export default function Audit() {
               </div>
             </div>
 
+            {/* Items Table */}
             <div className="bg-white/[0.01] border border-white/[0.05] rounded-2xl overflow-hidden shadow-2xl">
               {loading && items.length === 0 ? (
                 <div className="py-20 text-center text-slate-400">
@@ -339,9 +342,7 @@ export default function Audit() {
                   Loading scoped assets...
                 </div>
               ) : items.length === 0 ? (
-                <div className="py-20 text-center text-slate-500">
-                  No assets in this audit scope.
-                </div>
+                <div className="py-20 text-center text-slate-500">No assets in this audit scope.</div>
               ) : (
                 <Table>
                   <TableHeader className="bg-white/[0.02]">
@@ -361,8 +362,7 @@ export default function Audit() {
                         const matchesSearch =
                           item.assetName.toLowerCase().includes(itemSearch.toLowerCase()) ||
                           item.assetTag.toLowerCase().includes(itemSearch.toLowerCase())
-                        const matchesFilter =
-                          itemFilter === "All" || item.result === itemFilter
+                        const matchesFilter = itemFilter === "All" || item.result === itemFilter
                         return matchesSearch && matchesFilter
                       })
                       .map((item) => (
@@ -414,227 +414,174 @@ export default function Audit() {
         </div>
       )}
 
-      {/* ── MODAL: LAUNCH CYCLE DIALOG ── */}
-      {isLaunchOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 999,
-          }}
-        >
-          <div className="bg-[#0b0c16] border border-white/[0.08] rounded-2xl shadow-2xl p-7 w-full max-w-[480px]">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "14px" }}>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <FolderDot className="text-orange-500" size={19} /> Launch Audit Cycle
-              </h2>
-              <button onClick={() => setIsLaunchOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                <X size={18} />
-              </button>
+      {/* ── MODAL: LAUNCH CYCLE ── */}
+      <Dialog open={isLaunchOpen} onOpenChange={(v) => { setIsLaunchOpen(v); if (!v) resetLaunchForm() }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <FolderDot className="text-orange-500" size={18} /> Launch Audit Cycle
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleLaunchSubmit} className="space-y-4 mt-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-slate-400 font-semibold">Audit Cycle Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Q3 IT Hardware Audit"
+                className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full focus:border-orange-500/40 transition-colors"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
 
-            <form onSubmit={handleLaunchSubmit} className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold">Audit Cycle Name *</label>
+                <label className="text-xs text-slate-400 font-semibold">Scope Department</label>
+                <select
+                  className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full focus:border-orange-500/40 transition-colors"
+                  value={scopeDepartmentId}
+                  onChange={(e) => setScopeDepartmentId(e.target.value)}
+                >
+                  <option value="">All Departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-semibold">Scope Location</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Q3 IT Hardware Audit"
-                  className="px-3 py-2.5 bg-white/[0.02] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Bangalore"
+                  className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full focus:border-orange-500/40 transition-colors"
+                  value={scopeLocation}
+                  onChange={(e) => setScopeLocation(e.target.value)}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-400 font-semibold">Scope Department</label>
-                  <select
-                    className="px-3 py-2.5 bg-[#0b0c16] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full"
-                    value={scopeDepartmentId}
-                    onChange={(e) => setScopeDepartmentId(e.target.value)}
-                  >
-                    <option value="">All Departments</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-400 font-semibold">Scope Location</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Bangalore"
-                    className="px-3 py-2.5 bg-white/[0.02] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full"
-                    value={scopeLocation}
-                    onChange={(e) => setScopeLocation(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-400 font-semibold">Start Date *</label>
-                  <input
-                    type="date"
-                    required
-                    className="px-3 py-2.5 bg-white/[0.02] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-400 font-semibold">End Date *</label>
-                  <input
-                    type="date"
-                    required
-                    className="px-3 py-2.5 bg-white/[0.02] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Auditors multi-select list */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold">Assign Auditors *</label>
-                <div className="max-h-[100px] overflow-y-auto bg-white/[0.02] border border-white/[0.08] rounded-lg p-2 space-y-1.5">
-                  {users.map((u) => (
-                    <label key={u.id} className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedAuditors.includes(u.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedAuditors([...selectedAuditors, u.id])
-                          } else {
-                            setSelectedAuditors(selectedAuditors.filter((id) => id !== u.id))
-                          }
-                        }}
-                        style={{ accentColor: "#f97316" }}
-                      />
-                      {u.username}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2.5 justify-end pt-3 border-t border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setIsLaunchOpen(false)}
-                  className="px-4 py-2 border border-white/[0.08] hover:bg-white/[0.04] text-slate-300 rounded-lg text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white rounded-lg text-sm font-semibold shadow-md"
-                >
-                  Launch Cycle
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: FLAG DISCREPANCY POPUP ── */}
-      {isFlagOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 999,
-          }}
-        >
-          <div className="bg-[#0b0c16] border border-white/[0.08] rounded-2xl shadow-2xl p-7 w-full max-w-[420px]">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "14px" }}>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <AlertTriangle className="text-rose-500" size={19} /> Flag Discrepancy
-              </h2>
-              <button onClick={() => setIsFlagOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                <X size={18} />
-              </button>
             </div>
 
-            <form onSubmit={handleFlagSubmit} className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold font-medium">Reconciliation Result</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flagResult"
-                      checked={flagResult === "Missing"}
-                      onChange={() => setFlagResult("Missing")}
-                      style={{ accentColor: "#f97316" }}
-                    />
-                    Missing
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="flagResult"
-                      checked={flagResult === "Damaged"}
-                      onChange={() => setFlagResult("Damaged")}
-                      style={{ accentColor: "#f97316" }}
-                    />
-                    Damaged
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-slate-400 font-semibold font-medium">Auditor Check-in Notes *</label>
-                <textarea
+                <label className="text-xs text-slate-400 font-semibold">Start Date *</label>
+                <input
+                  type="date"
                   required
-                  placeholder="Describe location checks, damage specifics, or status report details..."
-                  className="px-3 py-2 bg-white/[0.02] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full h-[100px] resize-none"
-                  value={flagNotes}
-                  onChange={(e) => setFlagNotes(e.target.value)}
+                  className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full focus:border-orange-500/40 transition-colors"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
                 />
               </div>
-
-              <div className="flex gap-2.5 justify-end pt-3 border-t border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => setIsFlagOpen(false)}
-                  className="px-4 py-2 border border-white/[0.08] hover:bg-white/[0.04] text-slate-300 rounded-lg text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold"
-                >
-                  Flag Discrepancy
-                </button>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-slate-400 font-semibold">End Date *</label>
+                <input
+                  type="date"
+                  required
+                  className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full focus:border-orange-500/40 transition-colors"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+
+            {/* Multi-select combobox for auditors */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                <Users size={13} /> Assign Auditors *
+              </label>
+              <MultiSelectCombobox
+                options={auditorOptions}
+                selected={selectedAuditors}
+                onChange={setSelectedAuditors}
+                placeholder="Select auditors..."
+                searchPlaceholder="Search users..."
+              />
+              {selectedAuditors.length === 0 && (
+                <p className="text-[11px] text-rose-400/80 mt-0.5">At least one auditor is required</p>
+              )}
+            </div>
+
+            <div className="flex gap-2.5 justify-end pt-3 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => { setIsLaunchOpen(false); resetLaunchForm() }}
+                className="px-4 py-2 border border-white/[0.08] hover:bg-white/[0.04] text-slate-300 rounded-lg text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || selectedAuditors.length === 0}
+                className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold shadow-md transition-all"
+              >
+                Launch Cycle
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL: FLAG DISCREPANCY ── */}
+      <Dialog open={isFlagOpen} onOpenChange={setIsFlagOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <AlertTriangle className="text-rose-500" size={18} /> Flag Discrepancy
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleFlagSubmit} className="space-y-4 mt-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-slate-400 font-semibold">Reconciliation Result</label>
+              <div className="flex gap-4">
+                {(["Missing", "Damaged"] as const).map((val) => (
+                  <label key={val} className="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer group">
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        flagResult === val
+                          ? "border-orange-500 bg-orange-500"
+                          : "border-white/[0.16] group-hover:border-white/[0.3]"
+                      }`}
+                      onClick={() => setFlagResult(val)}
+                    >
+                      {flagResult === val && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <span onClick={() => setFlagResult(val)}>{val}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-slate-400 font-semibold">Auditor Notes *</label>
+              <textarea
+                required
+                placeholder="Describe location checks, damage specifics, or status report details..."
+                className="px-3 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white outline-none w-full h-[100px] resize-none focus:border-orange-500/40 transition-colors placeholder:text-slate-500"
+                value={flagNotes}
+                onChange={(e) => setFlagNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2.5 justify-end pt-3 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setIsFlagOpen(false)}
+                className="px-4 py-2 border border-white/[0.08] hover:bg-white/[0.04] text-slate-300 rounded-lg text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                Flag Discrepancy
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

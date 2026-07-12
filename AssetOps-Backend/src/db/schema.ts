@@ -299,6 +299,7 @@ export const assetAttachment = pgTable("asset_attachment", {
     .notNull()
     .references(() => asset.id),
   fileUrl: text("file_url").notNull(),
+  fileName: text("file_name"),
   fileType: text("file_type"), // photo | document
   label: text(),
 
