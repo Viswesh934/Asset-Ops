@@ -8,7 +8,8 @@ import {
   Wrench,
   ClipboardCheck,
   BarChart3,
-  Bell
+  Bell,
+  Activity
 } from "lucide-react"
 
 export interface RouteConfig {
@@ -27,5 +28,6 @@ export const routes: RouteConfig[] = [
   { path: "/maintenance", title: "Maintenance", icon: Wrench, requiresAuth: true },
   { path: "/audit", title: "Audit", icon: ClipboardCheck, requiresAuth: true },
   { path: "/reports", title: "Reports", icon: BarChart3, requiresAuth: true },
+  { path: "/activity-log", title: "Activity Log", icon: Activity, requiresAuth: true },
   { path: "/notifications", title: "Notifications", icon: Bell, requiresAuth: true },
 ]

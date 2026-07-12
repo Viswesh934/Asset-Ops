@@ -8,6 +8,9 @@ import {
   discrepancyReport,
   asset,
   employee,
+  userMaster,
+  userRoleMap,
+  notification,
   activityLog,
 } from "../db/schema"
 
@@ -211,9 +214,8 @@ export default async function auditRoutes(fastify: FastifyInstance) {
             .where(eq(auditItem.id, itemId))
             .returning()
 
-          // If Missing or Damaged, trigger discrepancy report
+          // If Missing or Damaged, trigger discrepancy report + notification
           if (result === "Missing" || result === "Damaged") {
-            // Check if report already exists
             const existingReport = await tx
               .select()
               .from(discrepancyReport)
@@ -221,16 +223,42 @@ export default async function auditRoutes(fastify: FastifyInstance) {
               .limit(1)
 
             if (!existingReport.length) {
-              await tx.insert(discrepancyReport).values({
+              const [report] = await tx.insert(discrepancyReport).values({
                 auditItemId: itemId,
                 description: `Asset flagged as ${result} during audit cycle. Auditor notes: ${notes || "None"}`,
                 resolved: false,
-              })
+              }).returning()
+
+              // Look up asset name for the notification
+              const assetRow = await tx.select().from(asset).where(eq(asset.id, updatedItem.assetId)).limit(1)
+              const assetName = assetRow[0]?.name || "Unknown Asset"
+
+              // Notify all admins and asset managers
+              const admins = await tx
+                .select({ id: userMaster.id })
+                .from(userMaster)
+                .innerJoin(userRoleMap, eq(userMaster.id, userRoleMap.userId))
+                .where(or(eq(userRoleMap.role, "Admin"), eq(userRoleMap.role, "Asset Manager")))
+
+              for (const admin of admins) {
+                await tx.insert(notification).values({
+                  userId: admin.id,
+                  type: "Audit Discrepancy Flagged",
+                  message: `Asset "${assetName}" flagged as ${result} during audit. Notes: ${notes || "None"}`,
+                  relatedEntityType: "discrepancy_report",
+                  relatedEntityId: report.id,
+                })
+              }
             }
-          } else {
-            // If Verified, resolve any existing discrepancy report
+          } else if (result === "Verified") {
+            // If Verified, mark any existing discrepancy report as resolved
             await tx
-              .delete(discrepancyReport)
+              .update(discrepancyReport)
+              .set({
+                resolved: true,
+                resolvedByUserId: userId || null,
+                resolvedAt: new Date().toISOString(),
+              })
               .where(eq(discrepancyReport.auditItemId, itemId))
           }
 
@@ -245,6 +273,88 @@ export default async function auditRoutes(fastify: FastifyInstance) {
 
           return updatedItem
         })
+      } catch (error) {
+        request.log.error(error)
+        return reply.code(500).send({ error: "Internal server error" })
+      }
+    }
+  )
+
+  // List Discrepancy Reports for an Audit Cycle
+  fastify.get("/audits/:id/discrepancies", async (request, reply) => {
+    try {
+      const db = getDrizzleClient(fastify)
+      const { id } = request.params as { id: string }
+
+      const reports = await db
+        .select({
+          id: discrepancyReport.id,
+          auditItemId: discrepancyReport.auditItemId,
+          description: discrepancyReport.description,
+          resolved: discrepancyReport.resolved,
+          resolvedByUserId: discrepancyReport.resolvedByUserId,
+          resolvedAt: discrepancyReport.resolvedAt,
+          createdAt: discrepancyReport.createdAt,
+          assetName: asset.name,
+          assetTag: asset.assetTag,
+          auditItemResult: auditItem.result,
+          auditItemNotes: auditItem.notes,
+        })
+        .from(discrepancyReport)
+        .innerJoin(auditItem, eq(discrepancyReport.auditItemId, auditItem.id))
+        .innerJoin(asset, eq(auditItem.assetId, asset.id))
+        .where(eq(auditItem.auditCycleId, id))
+        .orderBy(sql`${discrepancyReport.createdAt} DESC`)
+
+      return reports
+    } catch (error) {
+      request.log.error(error)
+      return reply.code(500).send({ error: "Internal server error" })
+    }
+  })
+
+  // Resolve a Discrepancy Report
+  fastify.patch(
+    "/audits/discrepancies/:reportId/resolve",
+    async (request, reply) => {
+      try {
+        const db = getDrizzleClient(fastify)
+        const { reportId } = request.params as { reportId: string }
+        const userId = request.user.userId
+
+        const existing = await db
+          .select()
+          .from(discrepancyReport)
+          .where(eq(discrepancyReport.id, reportId))
+          .limit(1)
+
+        if (!existing.length) {
+          return reply.code(404).send({ error: "Discrepancy report not found" })
+        }
+
+        if (existing[0].resolved) {
+          return reply.code(400).send({ error: "Discrepancy report is already resolved" })
+        }
+
+        const [updated] = await db
+          .update(discrepancyReport)
+          .set({
+            resolved: true,
+            resolvedByUserId: userId,
+            resolvedAt: new Date().toISOString(),
+          })
+          .where(eq(discrepancyReport.id, reportId))
+          .returning()
+
+        await db.insert(activityLog).values({
+          actorUserId: userId,
+          action: "RESOLVED_DISCREPANCY",
+          entityType: "discrepancy_report",
+          entityId: reportId,
+          details: `Resolved discrepancy report`,
+        })
+
+        return updated
       } catch (error) {
         request.log.error(error)
         return reply.code(500).send({ error: "Internal server error" })

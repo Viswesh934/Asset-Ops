@@ -6,11 +6,11 @@ export interface Asset {
   categoryId: string
   status: 'Available' | 'Allocated' | 'Reserved' | 'Under Maintenance' | 'Lost' | 'Retired' | 'Disposed'
   condition: 'New' | 'Good' | 'Fair' | 'Poor' | 'Damaged'
-  serialNumber?: string
-  acquisitionDate?: string
-  acquisitionCost?: number
-  location?: string
-  departmentId?: string
+  serialNumber?: string | null
+  acquisitionDate?: string | null
+  acquisitionCost?: number | string | null
+  location?: string | null
+  departmentId?: string | null
   isBookable: boolean
   assignedTo?: string
 }
@@ -31,22 +31,33 @@ export interface AssetAllocation {
 export interface MaintenanceRequest {
   id: string
   assetId: string
+  assetName?: string
+  assetTag?: string
+  serialNumber?: string | null
+  location?: string | null
+  raisedByUserId: string
+  raisedByName: string | null
   issueDescription: string
   priority: 'Low' | 'Medium' | 'High' | 'Critical'
+  photoUrl?: string | null
   status: 'Pending' | 'Approved' | 'Rejected' | 'Technician Assigned' | 'In Progress' | 'Resolved'
+  approvedByUserId?: string | null
+  approvedAt?: string | null
+  rejectionReason?: string | null
+  technicianName?: string | null
+  technicianAssignedAt?: string | null
+  resolvedAt?: string | null
   resolutionNotes: string | null
+  createdAt: string
 }
 
 export interface AssetAttachment {
   id: string
   assetId: string
   fileUrl: string
-}
-
-export interface AssetDetail extends Asset {
-  attachments: AssetAttachment[]
-  allocations: AssetAllocation[]
-  maintenance: MaintenanceRequest[]
+  fileName: string | null
+  fileType: string | null
+  signedUrl?: string | null
 }
 
 export interface AuditCycle {
@@ -83,8 +94,10 @@ export interface AssetDetail extends Asset {
   location?: string | null
   departmentId?: string | null
   isBookable: boolean
-  activeAllocation?: any
-  history?: any[]
+  activeAllocation?: string
+  history?: AssetAllocation[]
+  attachments?: AssetAttachment[]
+  maintenanceHistory?: MaintenanceRequest[]
 }
 
 export interface Booking {
@@ -151,4 +164,17 @@ export interface OrgEmployee {
   status: 'Active' | 'Inactive'
   userId?: string
 }
+
+export interface ActivityLogItem {
+  id: string
+  actorUserId: string
+  action: string
+  entityType: string
+  entityId?: string | null
+  details?: string | null
+  createdAt: string
+  username?: string | null
+  actorName?: string | null
+}
+
 

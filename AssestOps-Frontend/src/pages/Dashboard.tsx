@@ -62,7 +62,7 @@ function formatRelativeTime(dateStr: string): string {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { setShowRegisterModal, setShowBookModal, setShowRequestModal, refetchKey } = useAppContext()
+  const { setShowRegisterModal, setShowBookModal, setShowRequestModal, setShowMaintenanceModal, refetchKey } = useAppContext()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -255,7 +255,11 @@ export default function Dashboard() {
         </button>
         <button className="btn btn-secondary" onClick={() => setShowRequestModal(true)}>
           <RefreshCw size={16} />
-          Raise requests
+          Request Transfer
+        </button>
+        <button className="btn btn-secondary" onClick={() => setShowMaintenanceModal(true)}>
+          <Wrench size={16} />
+          Raise Maintenance
         </button>
       </div>
 

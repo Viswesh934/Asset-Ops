@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Booking, MaintenanceTicket, SystemNotification } from '../types'
 import { useBookingStore } from '../store/bookingStore'
+import { api } from '../utils/api'
 
 function getBookingStartEndDates(dateStr: string, timeSlotStr: string) {
   try {
@@ -32,7 +33,24 @@ export function useAppState() {
     localStorage.removeItem("userEmail")
     setToken(null)
     setUserEmail(null)
+    setUserRoles([])
   }, [])
+
+  const [userRoles, setUserRoles] = useState<string[]>([])
+
+  useEffect(() => {
+    if (token) {
+      api.get<{ user: { userId: string; roles: string[] } }>("/me")
+        .then(res => {
+          setUserRoles(res.user.roles || [])
+        })
+        .catch(err => {
+          console.error("Failed to fetch user roles:", err)
+        })
+    } else {
+      setUserRoles([])
+    }
+  }, [token])
 
   // Refetch key — increment to tell pages to re-fetch their data
   const [refetchKey, setRefetchKey] = useState(0)
@@ -42,6 +60,7 @@ export function useAppState() {
   const [showRegisterModal, setShowRegisterModal] = useState(false)
   const [showBookModal, setShowBookModal] = useState(false)
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false)
 
   // Booking and Maintenance are kept as standard mock states (unless integrated in other tasks)
   const [bookings, setBookings] = useState<Booking[]>([
@@ -172,9 +191,12 @@ export function useAppState() {
     setShowBookModal,
     showRequestModal,
     setShowRequestModal,
+    showMaintenanceModal,
+    setShowMaintenanceModal,
     handleBookResource,
     markAllNotificationsRead,
     resolveMaintenance,
     unreadNotificationsCount,
+    userRoles,
   }
 }
