@@ -1,5 +1,3 @@
-**==> picture [170 x 54] intentionally omitted <==**
-
 ## **AssetFlow** 
 
 Enterprise Asset & Resource Management System 
