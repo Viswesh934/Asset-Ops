@@ -21,7 +21,7 @@ export default async function maintenanceRoutes(fastify: FastifyInstance) {
       const db = getDrizzleClient(fastify)
       const userId = request.user.userId
       const roles = request.user.roles || []
-      const requests = await listMaintenanceRequests(userId, roles, db)
+      const requests = await listMaintenanceRequests(userId, roles, db, fastify.supabase)
       return requests
     } catch (error: any) {
       request.log.error(error)
@@ -67,7 +67,7 @@ export default async function maintenanceRoutes(fastify: FastifyInstance) {
         const db = getDrizzleClient(fastify)
         const userId = request.user.userId
         const body = request.body as any
-        const result = await createMaintenanceRequest(body, userId, db)
+        const result = await createMaintenanceRequest(body, userId, db, fastify.supabase)
         return reply.code(201).send(result)
       } catch (error: any) {
         request.log.error(error)

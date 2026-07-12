@@ -1,4 +1,5 @@
 import { eq, and, sql } from "drizzle-orm"
+import { SupabaseClient } from "@supabase/supabase-js"
 import { DrizzleDb } from "../db/connection"
 import {
   asset,
@@ -9,12 +10,18 @@ import {
   notification,
   activityLog,
 } from "../db/schema"
+import { extractStoragePath, BUCKET } from "./attachmentService"
 
 /**
  * List all maintenance requests.
  * Admins and Asset Managers see all. Employees see their own.
  */
-export async function listMaintenanceRequests(userId: string, roles: string[], db: DrizzleDb) {
+export async function listMaintenanceRequests(
+  userId: string,
+  roles: string[],
+  db: DrizzleDb,
+  supabase?: SupabaseClient
+) {
   const isAdminOrManager = roles.includes("Admin") || roles.includes("Asset Manager")
 
   const query = db
@@ -44,13 +51,34 @@ export async function listMaintenanceRequests(userId: string, roles: string[], d
     .innerJoin(asset, eq(maintenanceRequest.assetId, asset.id))
     .leftJoin(employee, eq(maintenanceRequest.raisedByUserId, employee.userId))
 
-  if (!isAdminOrManager) {
-    return await query
-      .where(eq(maintenanceRequest.raisedByUserId, userId))
-      .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
-  } else {
-    return await query.orderBy(sql`${maintenanceRequest.createdAt} DESC`)
-  }
+  const rows = !isAdminOrManager
+    ? await query
+        .where(eq(maintenanceRequest.raisedByUserId, userId))
+        .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+    : await query.orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+
+  const enriched = await Promise.all(
+    rows.map(async (row) => {
+      let photoUrl = row.photoUrl
+      if (photoUrl && supabase) {
+        const storagePath = extractStoragePath(photoUrl)
+        if (storagePath) {
+          const { data, error } = await supabase.storage
+            .from(BUCKET)
+            .createSignedUrl(storagePath, 3600)
+          if (!error && data) {
+            photoUrl = data.signedUrl
+          }
+        }
+      }
+      return {
+        ...row,
+        photoUrl,
+      }
+    })
+  )
+
+  return enriched
 }
 
 /**
@@ -81,7 +109,8 @@ export async function createMaintenanceRequest(
     photoUrl?: string | null
   },
   userId: string,
-  db: DrizzleDb
+  db: DrizzleDb,
+  supabase?: SupabaseClient
 ) {
   const assets = await db.select().from(asset).where(eq(asset.id, data.assetId)).limit(1)
   if (assets.length === 0) {
@@ -111,7 +140,23 @@ export async function createMaintenanceRequest(
     createdBy: userId,
   })
 
-  return newRequest
+  let photoUrl = newRequest.photoUrl
+  if (photoUrl && supabase) {
+    const storagePath = extractStoragePath(photoUrl)
+    if (storagePath) {
+      const { data: signedData, error } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrl(storagePath, 3600)
+      if (!error && signedData) {
+        photoUrl = signedData.signedUrl
+      }
+    }
+  }
+
+  return {
+    ...newRequest,
+    photoUrl,
+  }
 }
 
 /**

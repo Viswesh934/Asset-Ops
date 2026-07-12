@@ -3,7 +3,7 @@ import { eq, and, sql } from "drizzle-orm"
 import { DrizzleDb } from "../db/connection"
 import { assetAttachment, asset } from "../db/schema"
 
-const BUCKET = "Asset-Ops"
+export const BUCKET = "Asset-Ops"
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_")
@@ -57,8 +57,8 @@ export async function uploadAndConfirm(
       fileUrl: publicUrl,
       fileName,
       fileType,
-      createdBy: null,
-      updatedBy: null,
+      createdBy: userId,
+      updatedBy: userId,
     })
     .returning()
 
@@ -134,7 +134,7 @@ export async function deleteAttachment(
   return row
 }
 
-function extractStoragePath(publicUrl: string): string | null {
+export function extractStoragePath(publicUrl: string): string | null {
   const marker = "/storage/v1/object/public/"
   const idx = publicUrl.indexOf(marker)
   if (idx === -1) return null
