@@ -82,6 +82,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
           accessToken,
           roles,
           permissions,
+          resetPassword: user.resetPassword,
         }
       } catch (error: any) {
         if (error.message === "Invalid credentials") {
@@ -140,6 +141,45 @@ export default async function authRoutes(fastify: FastifyInstance) {
       } catch (error: any) {
         if (error.message === "User not found") {
           return reply.code(404).send({ error: error.message })
+        }
+        request.log.error(error)
+        return reply.code(500).send({ error: "Internal server error" })
+      }
+    }
+  )
+
+  // Reset Password Endpoint
+  const resetPasswordSchema = {
+    type: "object",
+    required: ["email", "tempPassword", "newPassword"],
+    properties: {
+      email: { type: "string" },
+      tempPassword: { type: "string" },
+      newPassword: { type: "string" },
+    },
+    additionalProperties: false,
+  }
+
+  fastify.post(
+    "/reset-password",
+    {
+      schema: {
+        body: resetPasswordSchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const db = getDrizzleClient(fastify)
+        const { email, tempPassword, newPassword } = request.body as any
+        const result = await AuthService.resetPassword(email, tempPassword, newPassword, db)
+        return reply.send(result)
+      } catch (error: any) {
+        if (
+          error.message === "User not found" ||
+          error.message === "Password reset not requested or already completed" ||
+          error.message === "Invalid temporary password"
+        ) {
+          return reply.code(400).send({ error: error.message })
         }
         request.log.error(error)
         return reply.code(500).send({ error: "Internal server error" })
