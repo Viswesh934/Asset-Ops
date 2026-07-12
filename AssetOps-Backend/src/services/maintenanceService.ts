@@ -4,6 +4,8 @@ import {
   asset,
   maintenanceRequest,
   employee,
+  userMaster,
+  userRoleMap,
   notification,
   activityLog,
 } from "../db/schema"
@@ -49,6 +51,23 @@ export async function listMaintenanceRequests(userId: string, roles: string[], d
   } else {
     return await query.orderBy(sql`${maintenanceRequest.createdAt} DESC`)
   }
+}
+
+/**
+ * List all users with the Technician role (for dropdown selection)
+ */
+export async function listTechnicians(db: DrizzleDb) {
+  return await db
+    .select({
+      userId: userMaster.id,
+      username: userMaster.username,
+      name: employee.name,
+      email: employee.email,
+    })
+    .from(userRoleMap)
+    .innerJoin(userMaster, eq(userRoleMap.userId, userMaster.id))
+    .leftJoin(employee, eq(employee.userId, userMaster.id))
+    .where(eq(userRoleMap.role, "Technician"))
 }
 
 /**
@@ -222,10 +241,28 @@ export async function rejectMaintenanceRequest(
  */
 export async function assignTechnician(
   id: string,
-  technicianName: string,
+  technicianUserId: string,
   userId: string,
   db: DrizzleDb
 ) {
+  // Validate the technician exists and has the Technician role
+  const techRole = await db
+    .select()
+    .from(userRoleMap)
+    .where(and(eq(userRoleMap.userId, technicianUserId), eq(userRoleMap.role, "Technician")))
+    .limit(1)
+  if (techRole.length === 0) {
+    throw new Error("Selected user is not a registered Technician")
+  }
+
+  // Resolve real name from employee table
+  const techEmployee = await db
+    .select({ name: employee.name })
+    .from(employee)
+    .where(eq(employee.userId, technicianUserId))
+    .limit(1)
+  const technicianName = techEmployee[0]?.name || technicianUserId
+
   const requests = await db.select().from(maintenanceRequest).where(eq(maintenanceRequest.id, id)).limit(1)
   if (requests.length === 0) {
     throw new Error("Maintenance request not found")
@@ -241,6 +278,7 @@ export async function assignTechnician(
     .set({
       status: "Technician Assigned",
       technicianName,
+      technicianUserId,
       technicianAssignedAt: sql`now()`,
       updatedBy: userId,
       updatedAt: sql`now()`,
@@ -252,7 +290,7 @@ export async function assignTechnician(
     action: "ASSIGNED_TECHNICIAN",
     entityType: "maintenance_request",
     entityId: id,
-    details: JSON.stringify({ technicianName }),
+    details: JSON.stringify({ technicianName, technicianUserId }),
     createdBy: userId,
   })
 

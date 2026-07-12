@@ -22,7 +22,9 @@ export default function Maintenance() {
     requests,
     loading,
     error,
+    technicians,
     fetchRequests,
+    fetchTechnicians,
     approveRequest,
     rejectRequest,
     assignTech,
@@ -50,6 +52,10 @@ export default function Maintenance() {
   useEffect(() => {
     fetchRequests()
   }, [fetchRequests, refetchKey])
+
+  useEffect(() => {
+    if (isManager) fetchTechnicians()
+  }, [isManager, fetchTechnicians])
 
   const handleOpenDetail = (req: MaintenanceRequest) => {
     setSelectedRequest(req)
@@ -93,6 +99,7 @@ export default function Maintenance() {
     if (!selectedRequest || !actionInput.trim()) return
     setActionLoading(true)
     setActionError(null)
+    // actionInput holds the technicianUserId (from dropdown value)
     const success = await assignTech(selectedRequest.id, actionInput)
     setActionLoading(false)
     if (success) {
@@ -559,15 +566,23 @@ export default function Maintenance() {
 
                   {actionType === "assign" && (
                     <div className="space-y-3 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
-                      <label className="text-xs text-slate-300 font-semibold block">Technician Name *</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full p-2.5 bg-[#12141c] border border-white/[0.1] rounded-lg text-sm text-white outline-none"
-                        placeholder="Enter technician / contractor name..."
-                        value={actionInput}
-                        onChange={(e) => setActionInput(e.target.value)}
-                      />
+                      <label className="text-xs text-slate-300 font-semibold block">Select Technician *</label>
+                      {technicians.length === 0 ? (
+                        <p className="text-xs text-slate-500 italic py-2">No technicians found. Please seed the database.</p>
+                      ) : (
+                        <select
+                          className="w-full p-2.5 bg-[#12141c] border border-white/[0.1] rounded-lg text-sm text-white outline-none"
+                          value={actionInput}
+                          onChange={(e) => setActionInput(e.target.value)}
+                        >
+                          <option value="">-- Choose a technician --</option>
+                          {technicians.map((t) => (
+                            <option key={t.userId} value={t.userId}>
+                              {t.name || t.username} ({t.email})
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <div className="flex gap-2 justify-end">
                         <button className="btn btn-secondary py-1 px-3 text-xs" onClick={() => setActionType(null)}>
                           Cancel
@@ -673,7 +688,7 @@ export default function Maintenance() {
                             className="flex-1 btn btn-secondary"
                             onClick={() => {
                               setActionType("assign")
-                              setActionInput(selectedRequest.technicianName || "")
+                              setActionInput("")
                             }}
                           >
                             Change Technician

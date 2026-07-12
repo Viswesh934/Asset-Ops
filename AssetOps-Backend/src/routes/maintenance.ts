@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify"
 import { getDrizzleClient } from "../db/connection"
 import {
   listMaintenanceRequests,
+  listTechnicians,
   createMaintenanceRequest,
   approveMaintenanceRequest,
   rejectMaintenanceRequest,
@@ -27,6 +28,22 @@ export default async function maintenanceRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: error.message || "Failed to list maintenance requests" })
     }
   })
+
+  // 2. GET /maintenance-requests/technicians
+  fastify.get(
+    "/maintenance-requests/technicians",
+    { preHandler: [fastify.requireRoles(["Admin", "Asset Manager"])] },
+    async (request, reply) => {
+      try {
+        const db = getDrizzleClient(fastify)
+        const technicians = await listTechnicians(db)
+        return technicians
+      } catch (error: any) {
+        request.log.error(error)
+        return reply.code(500).send({ error: error.message || "Failed to list technicians" })
+      }
+    }
+  )
 
   // 2. POST /maintenance-requests
   fastify.post(
@@ -117,9 +134,9 @@ export default async function maintenanceRoutes(fastify: FastifyInstance) {
       schema: {
         body: {
           type: "object",
-          required: ["technicianName"],
+          required: ["technicianUserId"],
           properties: {
-            technicianName: { type: "string" },
+            technicianUserId: { type: "string" },
           },
         },
       },
@@ -129,8 +146,8 @@ export default async function maintenanceRoutes(fastify: FastifyInstance) {
         const db = getDrizzleClient(fastify)
         const userId = request.user.userId
         const { id } = request.params as { id: string }
-        const { technicianName } = request.body as { technicianName: string }
-        const result = await assignTechnician(id, technicianName, userId, db)
+        const { technicianUserId } = request.body as { technicianUserId: string }
+        const result = await assignTechnician(id, technicianUserId, userId, db)
         return result
       } catch (error: any) {
         request.log.error(error)
