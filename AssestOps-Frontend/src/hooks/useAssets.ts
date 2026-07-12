@@ -77,19 +77,19 @@ export function useAssets() {
     departmentId?: string
     isBookable?: boolean
     attachments?: string[]
-  }): Promise<boolean> => {
+  }): Promise<any | null> => {
     setLoading(true)
     setError(null)
     try {
-      await api.post("/assets", assetData)
-      return true
+      const res = await api.post<[]>("/assets", assetData)
+      return res
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message)
       } else {
         setError("An unexpected network error occurred.")
       }
-      return false
+      return null
     } finally {
       setLoading(false)
     }
