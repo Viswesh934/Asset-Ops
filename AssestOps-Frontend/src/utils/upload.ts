@@ -1,51 +1,16 @@
 import { api } from "./api"
 
-interface UploadUrlResponse {
-  uploadUrl: string
-  filePath: string
-}
-
 interface AttachmentRecord {
   fileUrl: string
   [key: string]: unknown
 }
 
-export async function getUploadUrl(fileName: string, fileType: string): Promise<UploadUrlResponse> {
-  const data = await api.post<UploadUrlResponse>("/attachments/upload-url", { fileName, fileType })
-  return data
-}
-
-export async function uploadFile(
-  file: File,
-  uploadUrl: string
-): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  })
-  if (!response.ok) {
-    throw new Error("File upload failed")
-  }
-}
-
-export async function confirmUpload(
-  assetId: string,
-  filePath: string,
-  fileName: string,
-  fileType: string,
-  fileSize: number
-): Promise<void> {
-  await api.post("/attachments/confirm", {
-    assetId,
-    filePath,
-    fileName,
-    fileType,
-    fileSize,
-  })
-}
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api"
 
+/**
+ * Upload a file attachment for an asset (used in the Assets module).
+ * POSTs as multipart/form-data to POST /assets/:assetId/attachments.
+ */
 export async function uploadAssetFile(
   assetId: string,
   file: File,
@@ -77,40 +42,27 @@ export async function uploadAssetFile(
 
 /**
  * Upload a maintenance photo for a given asset.
- * Uses the asset-specific attachment endpoints to upload to Supabase Storage
- * and returns the public URL of the uploaded file.
+ * POSTs as multipart/form-data to POST /assets/:assetId/attachments,
+ * which uploads to Supabase internally and returns a record with a public fileUrl.
+ * The returned fileUrl is then stored as the photoUrl on the maintenance request.
  */
 export async function uploadMaintenancePhoto(
   assetId: string,
   file: File,
   onProgress?: (progress: number) => void
 ): Promise<string> {
-  onProgress?.(10)
+  onProgress?.(20)
 
-  // 1. Get signed upload URL from the backend
-  const { uploadUrl, filePath } = await api.post<UploadUrlResponse>(
-    `/assets/${assetId}/attachments/upload-url`,
-    { fileName: file.name, contentType: file.type }
-  )
+  const formData = new FormData()
+  formData.append("file", file, file.name)
 
   onProgress?.(40)
 
-  // 2. PUT the file directly to Supabase via the signed URL
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  })
-  if (!uploadResponse.ok) {
-    throw new Error("Photo upload to storage failed")
-  }
-
-  onProgress?.(75)
-
-  // 3. Confirm upload in the backend DB and get back the public URL
+  // api.ts skips Content-Type for FormData so the browser sets the
+  // correct multipart boundary automatically.
   const record = await api.post<AttachmentRecord>(
     `/assets/${assetId}/attachments`,
-    { filePath, fileType: file.type, label: "maintenance-photo" }
+    formData
   )
 
   onProgress?.(100)
