@@ -5,6 +5,7 @@ import fastifyPostgres from "@fastify/postgres"
 import rateLimit from "@fastify/rate-limit"
 import helmet from "@fastify/helmet"
 import fastifyJwt from "@fastify/jwt"
+import fastifyMultipart from "@fastify/multipart"
 
 import { createAppLoggerConfig } from "../lib/logger"
 import authenticate from "../plugins/auth"
@@ -27,6 +28,11 @@ import getDepartmentsRoutes from "../routes/organization-setup/getDepartments"
 import getEmployeesRoutes from "../routes/organization-setup/getEmployees"
 import getCategoriesRoutes from "../routes/organization-setup/getCategories"
 import addItemRoutes from "../routes/organization-setup/addItem"
+import attachmentRoutes from "../routes/attachments"
+import notificationRoutes from "../routes/notifications"
+import maintenanceRoutes from "../routes/maintenance"
+import activityLogRoutes from "../routes/activityLogs"
+
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -104,6 +110,7 @@ app.after(() => {
 
   app.register(dbPlugin)
   app.register(supabasePlugin)
+  app.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } })
 
   // Register routes
 
@@ -124,6 +131,10 @@ app.after(() => {
     fastifyPrivate.register(getEmployeesRoutes)
     fastifyPrivate.register(getCategoriesRoutes)
     fastifyPrivate.register(addItemRoutes)
+    fastifyPrivate.register(attachmentRoutes)
+    fastifyPrivate.register(notificationRoutes)
+    fastifyPrivate.register(maintenanceRoutes)
+    fastifyPrivate.register(activityLogRoutes)
 
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }

@@ -21,6 +21,7 @@ export const roleEnum = pgEnum("role_enum", [
   "Asset Manager",
   "Department Head",
   "Employee",
+  "Technician",
 ])
 
 export const statusEnum = pgEnum("status_enum", ["Active", "Inactive"])
@@ -298,6 +299,7 @@ export const assetAttachment = pgTable("asset_attachment", {
     .notNull()
     .references(() => asset.id),
   fileUrl: text("file_url").notNull(),
+  fileName: text("file_name"),
   fileType: text("file_type"), // photo | document
   label: text(),
 
@@ -401,6 +403,7 @@ export const maintenanceRequest = pgTable("maintenance_request", {
   approvedAt: timestamp("approved_at", { withTimezone: true, mode: "string" }),
   rejectionReason: text("rejection_reason"),
   technicianName: text("technician_name"),
+  technicianUserId: uuid("technician_user_id").references(() => userMaster.id),
   technicianAssignedAt: timestamp("technician_assigned_at", { withTimezone: true, mode: "string" }),
   resolvedAt: timestamp("resolved_at", { withTimezone: true, mode: "string" }),
   resolutionNotes: text("resolution_notes"),

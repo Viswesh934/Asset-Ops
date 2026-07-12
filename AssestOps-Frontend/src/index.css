@@ -3,6 +3,10 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/geist";
 
+html {
+  color-scheme: dark;
+}
+
 :root {
   --bg-app: #08090d;
   --bg-sidebar: #0f111a;
@@ -644,5 +648,34 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
   font-style: italic;
+}
+
+/* ── Dark mode native form elements ── */
+select, input[type="date"], input[type="time"], input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #12141f;
+  color: #f8fafc;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:checked {
+  background-color: rgba(224, 87, 46, 0.2);
+  color: #f8fafc;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) brightness(1.2);
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.9) brightness(1.4);
 }
 
