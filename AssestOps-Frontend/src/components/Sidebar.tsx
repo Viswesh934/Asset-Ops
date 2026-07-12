@@ -1,12 +1,13 @@
+import { NavLink, useLocation } from "react-router-dom"
 import { routes } from "../routes"
 
 interface SidebarProps {
-  currentPath: string
-  onNavigate: (path: string) => void
   unreadCount: number
 }
 
-export default function Sidebar({ currentPath, onNavigate, unreadCount }: SidebarProps) {
+export default function Sidebar({ unreadCount }: SidebarProps) {
+  const location = useLocation()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -19,15 +20,15 @@ export default function Sidebar({ currentPath, onNavigate, unreadCount }: Sideba
       <nav className="sidebar-menu">
         {routes.map(item => {
           const Icon = item.icon
-          const isActive = currentPath === item.path
+          const isActive = location.pathname === item.path
           const isNotification = item.path === "/notifications"
           const count = isNotification ? unreadCount : 0
 
           return (
-            <div
+            <NavLink
               key={item.path}
+              to={item.path}
               className={`sidebar-item ${isActive ? "active" : ""}`}
-              onClick={() => onNavigate(item.path)}
             >
               <Icon />
               <span style={{ flex: 1 }}>{item.title}</span>
@@ -36,7 +37,7 @@ export default function Sidebar({ currentPath, onNavigate, unreadCount }: Sideba
                   {count}
                 </span>
               ) : null}
-            </div>
+            </NavLink>
           )
         })}
       </nav>
@@ -48,4 +49,3 @@ export default function Sidebar({ currentPath, onNavigate, unreadCount }: Sideba
     </aside>
   )
 }
-

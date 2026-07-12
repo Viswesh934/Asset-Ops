@@ -1,17 +1,14 @@
 import { Calendar } from 'lucide-react'
-import type { Booking } from '../types'
+import { useAppContext } from '../contexts/AppContext'
 
-interface ResourceBookingProps {
-  bookings: Booking[]
-  onOpenBook: () => void
-}
+export default function ResourceBooking() {
+  const { bookings, setShowBookModal } = useAppContext()
 
-export default function ResourceBooking({ bookings, onOpenBook }: ResourceBookingProps) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="page-title">Resource Scheduler</h1>
-        <button className="btn btn-primary" onClick={onOpenBook}>
+        <button className="btn btn-primary" onClick={() => setShowBookModal(true)}>
           <Calendar size={16} /> Book Resource
         </button>
       </div>
@@ -29,20 +26,27 @@ export default function ResourceBooking({ bookings, onOpenBook }: ResourceBookin
             </tr>
           </thead>
           <tbody>
-            {bookings.map(book => (
-              <tr key={book.id}>
-                <td style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{book.id}</td>
-                <td style={{ fontWeight: 600 }}>{book.resource}</td>
-                <td>{book.user}</td>
-                <td>{book.date}</td>
-                <td style={{ color: 'var(--text-secondary)' }}>{book.timeSlot}</td>
+            {bookings.map(booking => (
+              <tr key={booking.id}>
+                <td style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--accent-color)' }}>{booking.id}</td>
+                <td style={{ fontWeight: 500 }}>{booking.resource}</td>
+                <td>{booking.user}</td>
+                <td>{booking.date}</td>
+                <td>{booking.timeSlot}</td>
                 <td>
-                  <span className={`badge ${book.status === 'Confirmed' ? 'badge-success' : 'badge-warning'}`}>
-                    {book.status}
+                  <span className={`badge ${booking.status === 'Confirmed' ? 'badge-success' : 'badge-warning'}`}>
+                    {booking.status}
                   </span>
                 </td>
               </tr>
             ))}
+            {bookings.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                  No bookings found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

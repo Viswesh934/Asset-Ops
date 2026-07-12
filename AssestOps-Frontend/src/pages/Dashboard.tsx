@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Package, User, Building, Calendar, RefreshCw, Clock, AlertTriangle, Wrench } from 'lucide-react'
 import { api } from '../utils/api'
+import { useAppContext } from '../contexts/AppContext'
 
 interface KPICards {
   assetsAvailable: number
@@ -43,13 +45,6 @@ interface DashboardData {
   recentActivities: ActivityItem[]
 }
 
-interface DashboardProps {
-  onTabChange: (tab: string) => void
-  onOpenRegister: () => void
-  onOpenBook: () => void
-  onOpenRequest: () => void
-}
-
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()
@@ -65,12 +60,9 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function Dashboard({
-  onTabChange,
-  onOpenRegister,
-  onOpenBook,
-  onOpenRequest
-}: DashboardProps) {
+export default function Dashboard() {
+  const navigate = useNavigate()
+  const { setShowRegisterModal, setShowBookModal, setShowRequestModal, refetchKey } = useAppContext()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -91,7 +83,7 @@ export default function Dashboard({
 
   useEffect(() => {
     fetchDashboardData()
-  }, [])
+  }, [refetchKey])
 
   if (loading) {
     return (
@@ -244,7 +236,7 @@ export default function Dashboard({
 
       {/* DYNAMIC ALERT BANNER */}
       {kpis.overdueReturns > 0 && (
-        <div className="alert-bar" onClick={() => onTabChange('Notifications')} style={{ cursor: 'pointer', marginTop: '16px' }}>
+        <div className="alert-bar" onClick={() => navigate('/notifications')} style={{ cursor: 'pointer', marginTop: '16px' }}>
           <AlertTriangle size={18} />
           <span style={{ flex: 1 }}>{kpis.overdueReturns} asset{kpis.overdueReturns > 1 ? 's' : ''} overdue for return - flagged for urgent follow-up</span>
           <Clock size={16} style={{ transform: 'rotate(90deg)' }} />
@@ -253,15 +245,15 @@ export default function Dashboard({
 
       {/* QUICK ACTION BUTTONS */}
       <div className="actions-container" style={{ marginTop: '16px' }}>
-        <button className="btn btn-primary" onClick={onOpenRegister}>
+        <button className="btn btn-primary" onClick={() => setShowRegisterModal(true)}>
           <Package size={16} />
           + register asset
         </button>
-        <button className="btn btn-secondary" onClick={onOpenBook}>
+        <button className="btn btn-secondary" onClick={() => setShowBookModal(true)}>
           <Calendar size={16} />
           Book resource
         </button>
-        <button className="btn btn-secondary" onClick={onOpenRequest}>
+        <button className="btn btn-secondary" onClick={() => setShowRequestModal(true)}>
           <RefreshCw size={16} />
           Raise requests
         </button>

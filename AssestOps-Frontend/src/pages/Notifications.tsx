@@ -1,16 +1,13 @@
-import type { SystemNotification } from '../types'
+import { useAppContext } from '../contexts/AppContext'
 
-interface NotificationsProps {
-  notifications: SystemNotification[]
-  onMarkAllAsRead: () => void
-}
+export default function Notifications() {
+  const { notifications, markAllNotificationsRead } = useAppContext()
 
-export default function Notifications({ notifications, onMarkAllAsRead }: NotificationsProps) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="page-title">Notifications Hub</h1>
-        <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '6px 14px' }} onClick={onMarkAllAsRead}>
+        <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '6px 14px' }} onClick={markAllNotificationsRead}>
           Mark all as read
         </button>
       </div>

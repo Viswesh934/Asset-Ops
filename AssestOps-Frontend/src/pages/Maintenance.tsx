@@ -1,11 +1,8 @@
-import type { MaintenanceTicket } from '../types'
+import { useAppContext } from '../contexts/AppContext'
 
-interface MaintenanceProps {
-  maintenance: MaintenanceTicket[]
-  onResolve: (id: string) => void
-}
+export default function Maintenance() {
+  const { maintenance, resolveMaintenance } = useAppContext()
 
-export default function Maintenance({ maintenance, onResolve }: MaintenanceProps) {
   return (
     <>
       <h1 className="page-title">Active Maintenance Logs</h1>
@@ -47,20 +44,25 @@ export default function Maintenance({ maintenance, onResolve }: MaintenanceProps
                   </span>
                 </td>
                 <td>
-                  {ticket.status !== 'Resolved' ? (
+                  {ticket.status !== 'Resolved' && (
                     <button
                       className="btn btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '11px' }}
-                      onClick={() => onResolve(ticket.id)}
+                      style={{ padding: '4px 10px', fontSize: '12px' }}
+                      onClick={() => resolveMaintenance(ticket.id)}
                     >
-                      Resolve
+                      Mark Resolved
                     </button>
-                  ) : (
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>Fixed</span>
                   )}
                 </td>
               </tr>
             ))}
+            {maintenance.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                  No maintenance tickets found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

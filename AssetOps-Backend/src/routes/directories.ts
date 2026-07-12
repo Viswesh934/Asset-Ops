@@ -7,7 +7,7 @@ export default async function directoryRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", fastify.authenticate)
 
   // 1. Get employees list
-  fastify.get("/employees", async (request, reply) => {
+  fastify.get("/get-employees", async (request, reply) => {
     try {
       const db = getDrizzleClient(fastify)
       const list = await db
@@ -29,7 +29,7 @@ export default async function directoryRoutes(fastify: FastifyInstance) {
   })
 
   // 2. Get departments list
-  fastify.get("/departments", async (request, reply) => {
+  fastify.get("/get-departments", async (request, reply) => {
     try {
       const db = getDrizzleClient(fastify)
       const list = await db
