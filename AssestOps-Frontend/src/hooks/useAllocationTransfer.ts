@@ -81,7 +81,7 @@ export function useAllocationTransfer() {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const data = await api.get<EmployeeDirectoryItem[]>("/employees")
+      const data = await api.get<EmployeeDirectoryItem[]>("/get-employees")
       setEmployees(data)
     } catch (err) {
       console.error("Failed to fetch employees", err)
@@ -90,7 +90,7 @@ export function useAllocationTransfer() {
 
   const fetchDepartments = useCallback(async () => {
     try {
-      const data = await api.get<DepartmentItem[]>("/departments")
+      const data = await api.get<DepartmentItem[]>("/get-departments")
       setDepartments(data)
     } catch (err) {
       console.error("Failed to fetch departments", err)

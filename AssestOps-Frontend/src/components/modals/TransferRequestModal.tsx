@@ -1,59 +1,59 @@
 import React, { useState, useEffect } from 'react'
 import { X, RefreshCw, AlertTriangle, ShieldCheck, HelpCircle } from 'lucide-react'
-import type { EmployeeDirectoryItem, DepartmentItem } from '../../hooks/useAllocationTransfer'
-
-interface AssetListItem {
-  id: string
-  name: string
-  assetTag: string
-  status: string
-  assignedTo?: string
-}
+import { useAssets } from '../../hooks/useAssets'
+import { useAllocationTransfer } from '../../hooks/useAllocationTransfer'
 
 interface TransferRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  assets: AssetListItem[]
-  employees: EmployeeDirectoryItem[]
-  departments: DepartmentItem[]
-  onAllocate: (data: {
-    assetId: string
-    targetType: 'Employee' | 'Department'
-    employeeId?: string | null
-    departmentId?: string | null
-    expectedReturnDate?: string | null
-  }) => void
-  onTransfer: (data: {
-    assetId: string
-    requestedToEmployeeId?: string | null
-    requestedToDepartmentId?: string | null
-  }) => void
+  onSuccess?: () => void
 }
 
 export default function TransferRequestModal({
   isOpen,
   onClose,
-  assets,
-  employees,
-  departments,
-  onAllocate,
-  onTransfer,
+  onSuccess,
 }: TransferRequestModalProps) {
-  // Selection States
+  const { assets: assetList, fetchAssets } = useAssets()
+  const {
+    employees,
+    departments,
+    fetchEmployees,
+    fetchDepartments,
+    createAllocation,
+    createTransferRequest,
+  } = useAllocationTransfer()
+
   const [selectedAssetId, setSelectedAssetId] = useState('')
   const [targetType, setTargetType] = useState<'Employee' | 'Department'>('Employee')
   const [targetEmployeeId, setTargetEmployeeId] = useState('')
   const [targetDepartmentId, setTargetDepartmentId] = useState('')
   const [expectedReturnDate, setExpectedReturnDate] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  // Selected Asset Info
-  const selectedAsset = assets.find((a) => a.id === selectedAssetId) || assets[0]
+  const assetItems = assetList.map(a => ({
+    id: a.id,
+    name: a.name,
+    assetTag: a.assetTag,
+    status: a.status,
+    assignedTo: a.assignedTo,
+  }))
+
+  const selectedAsset = assetItems.find((a) => a.id === selectedAssetId) || assetItems[0]
 
   useEffect(() => {
-    if (assets.length > 0 && !selectedAssetId) {
-      setSelectedAssetId(assets[0].id)
+    if (isOpen) {
+      fetchAssets()
+      fetchEmployees()
+      fetchDepartments()
     }
-  }, [assets, selectedAssetId])
+  }, [isOpen, fetchAssets, fetchEmployees, fetchDepartments])
+
+  useEffect(() => {
+    if (assetItems.length > 0 && !selectedAssetId) {
+      setSelectedAssetId(assetItems[0].id)
+    }
+  }, [assetItems, selectedAssetId])
 
   useEffect(() => {
     if (employees.length > 0 && !targetEmployeeId) {
@@ -69,24 +69,31 @@ export default function TransferRequestModal({
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedAssetId) return
-
-    if (selectedAsset.status === 'Available') {
-      onAllocate({
-        assetId: selectedAssetId,
-        targetType,
-        employeeId: targetType === 'Employee' ? targetEmployeeId : null,
-        departmentId: targetType === 'Department' ? targetDepartmentId : null,
-        expectedReturnDate: expectedReturnDate || null,
-      })
-    } else if (selectedAsset.status === 'Allocated') {
-      onTransfer({
-        assetId: selectedAssetId,
-        requestedToEmployeeId: targetType === 'Employee' ? targetEmployeeId : null,
-        requestedToDepartmentId: targetType === 'Department' ? targetDepartmentId : null,
-      })
+    if (!selectedAssetId || submitting) return
+    setSubmitting(true)
+    try {
+      if (selectedAsset.status === 'Available') {
+        await createAllocation({
+          assetId: selectedAssetId,
+          targetType,
+          employeeId: targetType === 'Employee' ? targetEmployeeId : null,
+          departmentId: targetType === 'Department' ? targetDepartmentId : null,
+          expectedReturnDate: expectedReturnDate || null,
+        })
+      } else if (selectedAsset.status === 'Allocated') {
+        await createTransferRequest({
+          assetId: selectedAssetId,
+          requestedToEmployeeId: targetType === 'Employee' ? targetEmployeeId : null,
+          requestedToDepartmentId: targetType === 'Department' ? targetDepartmentId : null,
+        })
+      }
+      onSuccess?.()
+      onClose()
+    } catch {
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -118,7 +125,7 @@ export default function TransferRequestModal({
               value={selectedAssetId}
               onChange={(e) => setSelectedAssetId(e.target.value)}
             >
-              {assets.map((a) => (
+              {assetItems.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} ({a.assetTag}) - [{a.status}]
                 </option>
@@ -137,11 +144,11 @@ export default function TransferRequestModal({
               gap: '10px',
               fontSize: '13px',
               backgroundColor: selectedAsset.status === 'Available' ? 'rgba(16, 185, 129, 0.1)' :
-                               selectedAsset.status === 'Allocated' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                selectedAsset.status === 'Allocated' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
               borderColor: selectedAsset.status === 'Available' ? 'rgba(16, 185, 129, 0.3)' :
-                           selectedAsset.status === 'Allocated' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+                selectedAsset.status === 'Allocated' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)',
               color: selectedAsset.status === 'Available' ? '#34d399' :
-                     selectedAsset.status === 'Allocated' ? '#fbbf24' : '#f87171',
+                selectedAsset.status === 'Allocated' ? '#fbbf24' : '#f87171',
             }}>
               {selectedAsset.status === 'Available' ? (
                 <>
@@ -252,8 +259,8 @@ export default function TransferRequestModal({
           {/* ACTIONS */}
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={!isActionable}>
-              {selectedAsset && selectedAsset.status === 'Available' ? 'Allocate Asset' : 'Submit Transfer Request'}
+            <button type="submit" className="btn btn-primary" disabled={!isActionable || submitting}>
+              {submitting ? 'Submitting...' : selectedAsset && selectedAsset.status === 'Available' ? 'Allocate Asset' : 'Submit Transfer Request'}
             </button>
           </div>
         </form>

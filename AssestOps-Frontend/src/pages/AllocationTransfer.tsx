@@ -1,33 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, ArrowRight, Check, X, ShieldAlert, Award } from 'lucide-react'
-import type { Allocation, TransferRequest } from '../hooks/useAllocationTransfer'
+import { useAllocationTransfer } from '../hooks/useAllocationTransfer'
+import { useAppContext } from '../contexts/AppContext'
 import ReturnAssetModal from '../components/modals/ReturnAssetModal'
 
-interface AllocationTransferProps {
-  transfers: TransferRequest[]
-  allocations: Allocation[]
-  onApproveTransfer: (id: string) => Promise<void>
-  onRejectTransfer: (id: string) => Promise<void>
-  onReturnAsset: (id: string, notes: { returnConditionNotes?: string; condition?: string }) => Promise<void>
-  onOpenRequest: () => void
-}
+export default function AllocationTransfer() {
+  const { setShowRequestModal, refetchKey } = useAppContext()
+  const {
+    allocations,
+    transfers,
+    fetchAllocations,
+    fetchTransfers,
+    approveTransfer,
+    rejectTransfer,
+    processReturn,
+  } = useAllocationTransfer()
 
-export default function AllocationTransfer({
-  transfers,
-  allocations,
-  onApproveTransfer,
-  onRejectTransfer,
-  onReturnAsset,
-  onOpenRequest
-}: AllocationTransferProps) {
   const [activeTab, setActiveTab] = useState<'allocations' | 'transfers'>('allocations')
-  const [selectedAllocForReturn, setSelectedAllocForReturn] = useState<Allocation | null>(null)
+  const [selectedAllocForReturn, setSelectedAllocForReturn] = useState<typeof allocations[0] | null>(null)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchAllocations()
+    fetchTransfers()
+  }, [fetchAllocations, fetchTransfers, refetchKey])
 
   const handleReturnSubmit = async (allocationId: string, notes: { returnConditionNotes?: string; condition?: string }) => {
     setActionLoadingId(allocationId)
     try {
-      await onReturnAsset(allocationId, notes)
+      await processReturn(allocationId, notes)
+      await fetchAllocations()
     } finally {
       setActionLoadingId(null)
       setSelectedAllocForReturn(null)
@@ -37,7 +39,9 @@ export default function AllocationTransfer({
   const handleApprove = async (transferId: string) => {
     setActionLoadingId(transferId)
     try {
-      await onApproveTransfer(transferId)
+      await approveTransfer(transferId)
+      await fetchAllocations()
+      await fetchTransfers()
     } finally {
       setActionLoadingId(null)
     }
@@ -46,7 +50,8 @@ export default function AllocationTransfer({
   const handleReject = async (transferId: string) => {
     setActionLoadingId(transferId)
     try {
-      await onRejectTransfer(transferId)
+      await rejectTransfer(transferId)
+      await fetchTransfers()
     } finally {
       setActionLoadingId(null)
     }
@@ -59,7 +64,7 @@ export default function AllocationTransfer({
           <h1 className="page-title" style={{ marginBottom: '4px' }}>Asset Custody & Lifecycle</h1>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Allocate assets directly or manage transfer requests across members.</p>
         </div>
-        <button className="btn btn-primary" onClick={onOpenRequest} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button className="btn btn-primary" onClick={() => setShowRequestModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <RefreshCw size={16} /> Allocate / Transfer Asset
         </button>
       </div>
@@ -115,7 +120,6 @@ export default function AllocationTransfer({
             </thead>
             <tbody>
               {allocations.map(alloc => {
-                // Determine if overdue
                 const isOverdue = alloc.status === 'Active' && alloc.expectedReturnDate && new Date(alloc.expectedReturnDate) < new Date()
                 const displayStatus = isOverdue ? 'Overdue' : alloc.status
 

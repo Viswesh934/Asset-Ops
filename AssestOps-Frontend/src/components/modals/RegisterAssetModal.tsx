@@ -1,37 +1,19 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X, Package, Loader2 } from "lucide-react"
-
-interface Category {
-  id: string
-  name: string
-}
+import { useAssets } from "../../hooks/useAssets"
 
 interface RegisterAssetModalProps {
   isOpen: boolean
   onClose: () => void
-  categories: Category[]
-  onRegister: (assetData: {
-    name: string
-    categoryId: string
-    serialNumber?: string
-    acquisitionDate?: string
-    acquisitionCost?: number
-    condition?: string
-    location?: string
-    isBookable?: boolean
-  }) => Promise<boolean>
-  loading: boolean
-  error: string | null
+  onSuccess?: () => void
 }
 
 export default function RegisterAssetModal({
   isOpen,
   onClose,
-  categories,
-  onRegister,
-  loading,
-  error,
+  onSuccess,
 }: RegisterAssetModalProps) {
+  const { categories, fetchCategories, registerAsset, loading, error } = useAssets()
   const [name, setName] = useState("")
   const [categoryId, setCategoryId] = useState("")
   const [serialNumber, setSerialNumber] = useState("")
@@ -41,13 +23,19 @@ export default function RegisterAssetModal({
   const [location, setLocation] = useState("")
   const [isBookable, setIsBookable] = useState(false)
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories()
+    }
+  }, [isOpen, fetchCategories])
+
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name || !categoryId) return
 
-    const success = await onRegister({
+    const success = await registerAsset({
       name,
       categoryId,
       serialNumber: serialNumber || undefined,
@@ -67,6 +55,7 @@ export default function RegisterAssetModal({
       setCondition("Good")
       setLocation("")
       setIsBookable(false)
+      onSuccess?.()
       onClose()
     }
   }

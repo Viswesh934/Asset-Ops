@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Booking, MaintenanceTicket, SystemNotification } from '../types'
-import { useAssets } from './useAssets'
-import { useAllocationTransfer } from './useAllocationTransfer'
 
 export function useAppState() {
   // Authentication State
@@ -15,37 +13,9 @@ export function useAppState() {
     setUserEmail(null)
   }, [])
 
-  // Navigation State
-  const [currentPath, setCurrentPath] = useState<string>("/dashboard")
-
-  // Hook-based data states
-  const { assets, fetchAssets, registerAsset } = useAssets()
-  const {
-    allocations,
-    transfers,
-    employees,
-    departments,
-    fetchAllocations,
-    fetchTransfers,
-    fetchEmployees,
-    fetchDepartments,
-    createAllocation,
-    processReturn,
-    createTransferRequest,
-    approveTransfer,
-    rejectTransfer,
-  } = useAllocationTransfer()
-
-  // Fetch initial backend data when authenticated
-  useEffect(() => {
-    if (token) {
-      fetchAssets()
-      fetchAllocations()
-      fetchTransfers()
-      fetchEmployees()
-      fetchDepartments()
-    }
-  }, [token, fetchAssets, fetchAllocations, fetchTransfers, fetchEmployees, fetchDepartments])
+  // Refetch key — increment to tell pages to re-fetch their data
+  const [refetchKey, setRefetchKey] = useState(0)
+  const triggerRefetch = useCallback(() => setRefetchKey(k => k + 1), [])
 
   // Modals Visibility
   const [showRegisterModal, setShowRegisterModal] = useState(false)
@@ -87,26 +57,6 @@ export function useAppState() {
     })
   }, [])
 
-  // Callback handlers calling Backend
-  const handleRegisterAsset = useCallback(async (assetData: {
-    name: string
-    categoryId: string
-    serialNumber?: string
-    acquisitionDate?: string
-    acquisitionCost?: number
-    condition?: string
-    location?: string
-    departmentId?: string
-    isBookable?: boolean
-  }) => {
-    const success = await registerAsset(assetData)
-    if (success) {
-      fetchAssets()
-      setShowRegisterModal(false)
-      addNotification('success', 'Asset Registered', `New asset ${assetData.name} successfully registered.`)
-    }
-  }, [registerAsset, fetchAssets, addNotification])
-
   const handleBookResource = useCallback((bookingData: {
     resource: string
     user: string
@@ -127,63 +77,6 @@ export function useAppState() {
     })
     setShowBookModal(false)
   }, [addNotification])
-
-  const handleAllocateAsset = useCallback(async (allocData: {
-    assetId: string
-    targetType: "Employee" | "Department"
-    employeeId?: string | null
-    departmentId?: string | null
-    expectedReturnDate?: string | null
-  }) => {
-    try {
-      await createAllocation(allocData)
-      await fetchAssets()
-      setShowRequestModal(false)
-      addNotification('success', 'Asset Allocated', 'Asset allocation completed successfully.')
-    } catch (err: any) {
-      alert(err.message || 'Failed to allocate asset')
-    }
-  }, [createAllocation, fetchAssets, addNotification])
-
-  const handleRequestTransfer = useCallback(async (transferData: {
-    assetId: string
-    requestedToEmployeeId?: string | null
-    requestedToDepartmentId?: string | null
-  }) => {
-    try {
-      await createTransferRequest(transferData)
-      await fetchAssets()
-      setShowRequestModal(false)
-      addNotification('info', 'Transfer Requested', 'Transfer request submitted for approvals.')
-    } catch (err: any) {
-      alert(err.message || 'Failed to request transfer')
-    }
-  }, [createTransferRequest, fetchAssets, addNotification])
-
-  const handleReturnAsset = useCallback(async (allocationId: string, returnNotes: { returnConditionNotes?: string; condition?: string }) => {
-    try {
-      await processReturn(allocationId, returnNotes)
-      await fetchAssets()
-      addNotification('success', 'Asset Returned', 'Asset returned and marked as Available.')
-    } catch (err: any) {
-      alert(err.message || 'Failed to process asset return')
-    }
-  }, [processReturn, fetchAssets, addNotification])
-
-  const handleApproveTransfer = useCallback(async (transferId: string) => {
-    const success = await approveTransfer(transferId)
-    if (success) {
-      await fetchAssets()
-      addNotification('success', 'Transfer Approved', 'Transfer completed and custody updated.')
-    }
-  }, [approveTransfer, fetchAssets, addNotification])
-
-  const handleRejectTransfer = useCallback(async (transferId: string) => {
-    const success = await rejectTransfer(transferId)
-    if (success) {
-      addNotification('warning', 'Transfer Rejected', 'Transfer request rejected.')
-    }
-  }, [rejectTransfer, addNotification])
 
   const markAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map(n => ({ ...n, read: true })))
@@ -208,13 +101,8 @@ export function useAppState() {
     userEmail,
     setUserEmail,
     handleLogout,
-    currentPath,
-    setCurrentPath,
-    assets,
-    allocations,
-    transfers,
-    employees,
-    departments,
+    refetchKey,
+    triggerRefetch,
     bookings,
     maintenance,
     notifications,
@@ -224,13 +112,7 @@ export function useAppState() {
     setShowBookModal,
     showRequestModal,
     setShowRequestModal,
-    handleRegisterAsset,
     handleBookResource,
-    handleAllocateAsset,
-    handleRequestTransfer,
-    handleReturnAsset,
-    handleApproveTransfer,
-    handleRejectTransfer,
     markAllNotificationsRead,
     resolveMaintenance,
     unreadNotificationsCount,

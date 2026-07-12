@@ -22,6 +22,10 @@ import dashboardRoutes from "../routes/dashboard"
 import allocationRoutes from "../routes/allocations"
 import transferRoutes from "../routes/transfers"
 import directoryRoutes from "../routes/directories"
+import getDepartmentsRoutes from "../routes/organization-setup/getDepartments"
+import getEmployeesRoutes from "../routes/organization-setup/getEmployees"
+import getCategoriesRoutes from "../routes/organization-setup/getCategories"
+import addItemRoutes from "../routes/organization-setup/addItem"
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -101,21 +105,23 @@ app.after(() => {
   app.register(supabasePlugin)
 
   // Register routes
-  app.register(healthRoutes, { prefix: "/api" });
-  app.register(authRoutes, { prefix: "/api" });
-  app.register(dashboardRoutes, { prefix: "/api" });
-  app.register(assetRoutes, { prefix: "/api" });
-  app.register(allocationRoutes, { prefix: "/api" });
-  app.register(transferRoutes, { prefix: "/api" });
-  app.register(directoryRoutes, { prefix: "/api" });
-  app.register(auditRoutes, { prefix: "/api" });
 
+  app.register(authRoutes, { prefix: "/api" });
+  app.register(healthRoutes, { prefix: "/api" })
   // Example of how to protect routes using the authenticate hook:
   app.register(async function protectedRoutes(fastifyPrivate) {
     fastifyPrivate.addHook("preHandler", fastifyPrivate.authenticate)
 
     fastifyPrivate.register(assetRoutes)
     fastifyPrivate.register(auditRoutes)
+    fastifyPrivate.register(dashboardRoutes)
+    fastifyPrivate.register(allocationRoutes)
+    fastifyPrivate.register(transferRoutes)
+    fastifyPrivate.register(directoryRoutes)
+    fastifyPrivate.register(getDepartmentsRoutes)
+    fastifyPrivate.register(getEmployeesRoutes)
+    fastifyPrivate.register(getCategoriesRoutes)
+    fastifyPrivate.register(addItemRoutes)
 
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }
@@ -131,11 +137,7 @@ app.after(() => {
       return users
     })
 
-    fastifyPrivate.get("/departments", async (request) => {
-      const db = getDrizzleClient(fastifyPrivate)
-      const depts = await db.select().from(department)
-      return depts
-    })
+
 
     fastifyPrivate.get("/activity-log", async (request) => {
       const db = getDrizzleClient(fastifyPrivate)
