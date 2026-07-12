@@ -35,12 +35,7 @@ interface BookingState {
   completeBooking: (bookingId: string) => Promise<void>
 }
 
-const INITIAL_BOOKINGS: Booking[] = [
-  { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Upcoming' },
-  { id: 'BK-102', resource: 'Conference Room 4A', user: 'HR Recruitment Team', date: '2026-07-12', timeSlot: '4:00 PM - 5:30 PM', status: 'Upcoming' },
-  { id: 'BK-103', resource: 'Training Room C', user: 'Operations Dept', date: '2026-07-13', timeSlot: '9:00 AM - 1:00 PM', status: 'Upcoming' },
-  { id: 'BK-104', resource: 'Epson Projector X41 (AF-0062)', user: 'R&D Team Lead', date: '2026-07-13', timeSlot: '2:00 PM - 6:00 PM', status: 'Ongoing' }
-]
+const INITIAL_BOOKINGS: Booking[] = []
 
 export const useBookingStore = create<BookingState>((set, get) => ({
   bookings: INITIAL_BOOKINGS,
@@ -111,6 +106,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       throw new Error(err)
     }
 
+    let bookingId = `BK-${get().bookings.length + 105}`
+    let bookingStatus: Booking['status'] = 'Upcoming'
+
     if (token && data.assetId) {
       try {
         const res = await fetch(`${API_BASE_URL}/ubookings`, {
@@ -133,21 +131,25 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           set({ loading: false, error: errMsg })
           throw new Error(errMsg)
         }
-      } catch (e: any) {
-        if (e.message.includes('Overlap') || e.message.includes('already booked')) {
-          set({ loading: false, error: e.message })
-          throw e
+
+        const backendBooking = await res.json()
+        if (backendBooking && backendBooking.id) {
+          bookingId = backendBooking.id
+          bookingStatus = backendBooking.status || 'Upcoming'
         }
+      } catch (e: any) {
+        set({ loading: false, error: e.message })
+        throw e
       }
     }
 
     const newBooking: Booking = {
-      id: `BK-${get().bookings.length + 105}`,
+      id: bookingId,
       resource: data.resource,
       user: data.user,
       date: data.date,
       timeSlot: data.timeSlot,
-      status: 'Upcoming'
+      status: bookingStatus
     }
 
     set((state) => ({
@@ -210,14 +212,20 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   cancelBooking: async (bookingId, reason) => {
     const token = localStorage.getItem('token')
     if (token && !bookingId.startsWith('BK-')) {
-      await fetch(`${API_BASE_URL}/ubookings/${bookingId}/cancel`, {
+      const res = await fetch(`${API_BASE_URL}/ubookings/${bookingId}/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ cancelledReason: reason })
-      }).catch(() => null)
+      })
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}))
+        const errMsg = resData.error || 'Failed to cancel booking'
+        set({ error: errMsg })
+        throw new Error(errMsg)
+      }
     }
 
     set((state) => ({
@@ -230,10 +238,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   startBooking: async (bookingId) => {
     const token = localStorage.getItem('token')
     if (token && !bookingId.startsWith('BK-')) {
-      await fetch(`${API_BASE_URL}/ubookings/${bookingId}/start`, {
+      const res = await fetch(`${API_BASE_URL}/ubookings/${bookingId}/start`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
-      }).catch(() => null)
+      })
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}))
+        const errMsg = resData.error || 'Failed to start session'
+        set({ error: errMsg })
+        throw new Error(errMsg)
+      }
     }
 
     set((state) => ({
@@ -246,10 +260,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   completeBooking: async (bookingId) => {
     const token = localStorage.getItem('token')
     if (token && !bookingId.startsWith('BK-')) {
-      await fetch(`${API_BASE_URL}/ubookings/${bookingId}/complete`, {
+      const res = await fetch(`${API_BASE_URL}/ubookings/${bookingId}/complete`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
-      }).catch(() => null)
+      })
+      if (!res.ok) {
+        const resData = await res.json().catch(() => ({}))
+        const errMsg = resData.error || 'Failed to complete session'
+        set({ error: errMsg })
+        throw new Error(errMsg)
+      }
     }
 
     set((state) => ({

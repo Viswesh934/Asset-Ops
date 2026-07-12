@@ -45,10 +45,10 @@ export function useAppState() {
 
   // Booking and Maintenance are kept as standard mock states (unless integrated in other tasks)
   const [bookings, setBookings] = useState<Booking[]>([
-    { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Confirmed' },
-    { id: 'BK-102', resource: 'Conference Room 4A', user: 'HR Recruitment Team', date: '2026-07-12', timeSlot: '4:00 PM - 5:30 PM', status: 'Confirmed' },
-    { id: 'BK-103', resource: 'Training Room C', user: 'Operations Dept', date: '2026-07-13', timeSlot: '9:00 AM - 1:00 PM', status: 'Pending Approval' },
-    { id: 'BK-104', resource: 'Epson Projector X41 (AF-0062)', user: 'R&D Team Lead', date: '2026-07-13', timeSlot: '2:00 PM - 6:00 PM', status: 'Confirmed' }
+    { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Upcoming' },
+    { id: 'BK-102', resource: 'Conference Room 4A', user: 'HR Recruitment Team', date: '2026-07-12', timeSlot: '4:00 PM - 5:30 PM', status: 'Upcoming' },
+    { id: 'BK-103', resource: 'Training Room C', user: 'Operations Dept', date: '2026-07-13', timeSlot: '9:00 AM - 1:00 PM', status: 'Upcoming' },
+    { id: 'BK-104', resource: 'Epson Projector X41 (AF-0062)', user: 'R&D Team Lead', date: '2026-07-13', timeSlot: '2:00 PM - 6:00 PM', status: 'Ongoing' }
   ])
 
   const [maintenance, setMaintenance] = useState<MaintenanceTicket[]>([
@@ -128,7 +128,7 @@ export function useAppState() {
         user: bookingData.user,
         date: bookingData.date,
         timeSlot: bookingData.timeSlot,
-        status: 'Confirmed'
+        status: 'Upcoming'
       }
       addNotification('success', 'Resource Booked', `${created.resource} has been booked by ${created.user}.`)
       return [created, ...prev]

@@ -112,8 +112,8 @@ export default function BookingDetailsModal({
           }}>
             <Bell size={16} style={{ color: '#60a5fa', flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong style={{ display: 'block', color: '#fff' }}>Reminder Notice</strong>
-              This slot starts in 15 minutes! Ensure you check in on time.
+              <strong style={{ display: 'block', color: '#fff' }}>Upcoming Booking</strong>
+              Start the session when you begin using the resource.
             </div>
           </div>
         )}

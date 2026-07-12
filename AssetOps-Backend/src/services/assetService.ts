@@ -381,8 +381,8 @@ export async function listBookings(
       resource: asset.name,
       user: employee.name,
       date: sql`to_char(${resourceBooking.startTime} AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')`,
-      startTime: resourceBooking.startTime,
-      endTime: resourceBooking.endTime,
+      startStr: sql`to_char(${resourceBooking.startTime} AT TIME ZONE 'Asia/Kolkata', 'HH12:MI AM')`,
+      endStr: sql`to_char(${resourceBooking.endTime} AT TIME ZONE 'Asia/Kolkata', 'HH12:MI AM')`,
       status: resourceBooking.status,
       cancelledReason: resourceBooking.cancelledReason,
     })
@@ -401,27 +401,12 @@ export async function listBookings(
   const results = conditions.length > 0 ? await query.where(and(...conditions)) : await query
 
   return results.map(r => {
-    const startObj = new Date(r.startTime)
-    const endObj = new Date(r.endTime)
-    
-    const formatTime = (d: Date) => {
-      // Shift UTC time to Indian Standard Time (Asia/Kolkata offset +05:30)
-      const offsetMs = 5.5 * 60 * 60 * 1000
-      const localTime = new Date(d.getTime() + offsetMs)
-      let hours = localTime.getUTCHours()
-      const minutes = String(localTime.getUTCMinutes()).padStart(2, '0')
-      const ampm = hours >= 12 ? 'PM' : 'AM'
-      hours = hours % 12
-      hours = hours ? hours : 12
-      return `${hours}:${minutes} ${ampm}`
-    }
-
     return {
       id: r.id,
       resource: r.resource,
       user: r.user || "System User",
       date: r.date as string,
-      timeSlot: `${formatTime(startObj)} - ${formatTime(endObj)}`,
+      timeSlot: `${r.startStr} - ${r.endStr}`,
       status: r.status
     }
   })
@@ -484,12 +469,18 @@ export async function rescheduleBooking(
       throw new Error("Overlap validation failed: This resource is already booked during the requested timeslot")
     }
 
+    const now = new Date()
+    let status: "Upcoming" | "Ongoing" = "Upcoming"
+    if (start <= now && end >= now) {
+      status = "Ongoing"
+    }
+
     const [updated] = await tx
       .update(resourceBooking)
       .set({
         startTime: data.startTime,
         endTime: data.endTime,
-        status: "Upcoming",
+        status,
         updatedBy: userId,
         updatedAt: sql`now()`,
       })

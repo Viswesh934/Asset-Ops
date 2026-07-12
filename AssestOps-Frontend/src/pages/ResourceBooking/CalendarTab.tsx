@@ -252,7 +252,7 @@ export default function CalendarTab({
         <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontWeight: 500 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(29, 110, 228, 0.2)', border: '1px solid rgba(29, 110, 228, 0.6)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>Confirmed</span>
+            <span style={{ color: 'var(--text-secondary)' }}>Scheduled</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: 'rgba(239, 68, 68, 0.1)', border: '1.5px dashed rgba(239, 68, 68, 0.6)' }} />
