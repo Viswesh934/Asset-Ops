@@ -51,6 +51,9 @@ async function main() {
     const adminId = "11111111-1111-1111-1111-111111111111"
     const auditorId = "22222222-2222-2222-2222-222222222222"
     const managerId = "33333333-3333-3333-3333-333333333333"
+    const tech1Id = "44444444-4444-4444-4444-444444444444"
+    const tech2Id = "55555555-5555-5555-5555-555555555555"
+    const tech3Id = "66666666-6666-6666-6666-666666666666"
 
     console.log("⏳ Seeding users...")
     await db.insert(userMaster)
@@ -86,10 +89,46 @@ async function main() {
         defaultUser: false,
       })
 
+    await db.insert(userMaster)
+      .values({
+        id: tech1Id,
+        login: "tech1@example.com",
+        password: passwordHash,
+        username: "tech_ravi",
+        isActive: true,
+        resetPassword: false,
+        defaultUser: false,
+      })
+
+    await db.insert(userMaster)
+      .values({
+        id: tech2Id,
+        login: "tech2@example.com",
+        password: passwordHash,
+        username: "tech_meera",
+        isActive: true,
+        resetPassword: false,
+        defaultUser: false,
+      })
+
+    await db.insert(userMaster)
+      .values({
+        id: tech3Id,
+        login: "tech3@example.com",
+        password: passwordHash,
+        username: "tech_arjun",
+        isActive: true,
+        resetPassword: false,
+        defaultUser: false,
+      })
+
     // Roles Mapping
     await db.insert(userRoleMap).values({ userId: adminId, role: "Admin" })
     await db.insert(userRoleMap).values({ userId: auditorId, role: "Employee" })
     await db.insert(userRoleMap).values({ userId: managerId, role: "Asset Manager" })
+    await db.insert(userRoleMap).values({ userId: tech1Id, role: "Technician" })
+    await db.insert(userRoleMap).values({ userId: tech2Id, role: "Technician" })
+    await db.insert(userRoleMap).values({ userId: tech3Id, role: "Technician" })
 
     // 2. Seed Categories
     console.log("⏳ Seeding asset categories...")
@@ -140,6 +179,30 @@ async function main() {
         name: "Sam Manager",
         email: "manager@example.com",
         departmentId: "d1111111-1111-1111-1111-111111111111",
+        status: "Active" as const,
+      },
+      {
+        id: "e4444444-4444-4444-4444-444444444444",
+        userId: tech1Id,
+        name: "Ravi Kumar",
+        email: "tech1@example.com",
+        departmentId: "d2222222-2222-2222-2222-222222222222",
+        status: "Active" as const,
+      },
+      {
+        id: "e5555555-5555-5555-5555-555555555555",
+        userId: tech2Id,
+        name: "Meera Nair",
+        email: "tech2@example.com",
+        departmentId: "d2222222-2222-2222-2222-222222222222",
+        status: "Active" as const,
+      },
+      {
+        id: "e6666666-6666-6666-6666-666666666666",
+        userId: tech3Id,
+        name: "Arjun Verma",
+        email: "tech3@example.com",
+        departmentId: "d3333333-3333-3333-3333-333333333333",
         status: "Active" as const,
       }
     ]

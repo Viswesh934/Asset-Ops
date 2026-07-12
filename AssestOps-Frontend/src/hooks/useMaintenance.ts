@@ -2,10 +2,18 @@ import { useState, useCallback } from "react"
 import { api, ApiError } from "../utils/api"
 import type { MaintenanceRequest } from "../types"
 
+export interface Technician {
+  userId: string
+  username: string
+  name: string | null
+  email: string | null
+}
+
 export function useMaintenance() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [requests, setRequests] = useState<MaintenanceRequest[]>([])
+  const [technicians, setTechnicians] = useState<Technician[]>([])
 
   const fetchRequests = useCallback(async () => {
     setLoading(true)
@@ -21,6 +29,15 @@ export function useMaintenance() {
       }
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const fetchTechnicians = useCallback(async () => {
+    try {
+      const data = await api.get<Technician[]>("/maintenance-requests/technicians")
+      setTechnicians(data)
+    } catch {
+      // silently fail — user may not be a manager
     }
   }, [])
 
@@ -83,11 +100,11 @@ export function useMaintenance() {
     }
   }, [])
 
-  const assignTech = useCallback(async (id: string, technicianName: string): Promise<boolean> => {
+  const assignTech = useCallback(async (id: string, technicianUserId: string): Promise<boolean> => {
     setLoading(true)
     setError(null)
     try {
-      await api.post(`/maintenance-requests/${id}/assign`, { technicianName })
+      await api.post(`/maintenance-requests/${id}/assign`, { technicianUserId })
       return true
     } catch (err) {
       if (err instanceof ApiError) {
@@ -141,7 +158,9 @@ export function useMaintenance() {
     loading,
     error,
     requests,
+    technicians,
     fetchRequests,
+    fetchTechnicians,
     raiseRequest,
     approveRequest,
     rejectRequest,
