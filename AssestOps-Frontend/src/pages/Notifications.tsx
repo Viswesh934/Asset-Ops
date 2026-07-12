@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Bell, CheckCheck, FileText, AlertTriangle, Info, CheckCircle } from 'lucide-react'
+import { Bell, CheckCheck, AlertTriangle, Info, CheckCircle } from 'lucide-react'
 import { api } from '../utils/api'
 
 interface DbNotification {

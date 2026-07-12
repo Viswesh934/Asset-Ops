@@ -32,6 +32,7 @@ import attachmentRoutes from "../routes/attachments"
 import notificationRoutes from "../routes/notifications"
 import maintenanceRoutes from "../routes/maintenance"
 import activityLogRoutes from "../routes/activityLogs"
+import reportsRoutes from "../routes/reports"
 
 
 export const app = fastify({
@@ -135,6 +136,7 @@ app.after(() => {
     fastifyPrivate.register(notificationRoutes)
     fastifyPrivate.register(maintenanceRoutes)
     fastifyPrivate.register(activityLogRoutes)
+    fastifyPrivate.register(reportsRoutes)
 
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }

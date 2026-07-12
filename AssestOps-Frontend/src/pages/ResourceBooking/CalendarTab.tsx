@@ -46,7 +46,7 @@ export default function CalendarTab({
   selectedDate,
   setSelectedDate,
   resources,
-  dates,
+  dates: _dates,
   onSelectBooking,
   onOpenBook
 }: CalendarTabProps) {
