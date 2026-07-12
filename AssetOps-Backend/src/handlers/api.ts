@@ -9,6 +9,7 @@ import fastifyJwt from "@fastify/jwt"
 import { createAppLoggerConfig } from "../lib/logger"
 import authenticate from "../plugins/auth"
 import dbPlugin from "../plugins/dbErrorHandler"
+import supabasePlugin from "../plugins/supabase"
 import authRoutes from "../routes/auth"
 import healthRoutes from "../routes/health"
 import dashboardRoutes from "../routes/dashboard"
@@ -25,7 +26,7 @@ app.register(fastifyEnv, {
   confKey: "config",
   schema: {
     type: "object",
-    required: ["DATABASE_URL", "JWT_SECRET"],
+    required: ["DATABASE_URL", "JWT_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
     properties: {
       NODE_ENV: { type: "string", default: "local" },
       DATABASE_URL: { type: "string" },
@@ -33,6 +34,8 @@ app.register(fastifyEnv, {
       JWT_EXPIRES_IN: { type: "string", default: "4h" },
       PORT: { type: "string", default: "3000" },
       FRONTEND_ORIGIN: { type: "string", default: "http://localhost:5173" },
+      SUPABASE_URL: { type: "string" },
+      SUPABASE_SERVICE_ROLE_KEY: { type: "string" },
     },
   },
   dotenv: true,
@@ -83,6 +86,7 @@ app.after(() => {
   })
 
   app.register(dbPlugin)
+  app.register(supabasePlugin)
   
   // Register routes
   app.register(healthRoutes, { prefix: "/api" })
@@ -109,6 +113,8 @@ declare module "fastify" {
       JWT_EXPIRES_IN: string
       PORT: string
       FRONTEND_ORIGIN: string
+      SUPABASE_URL: string
+      SUPABASE_SERVICE_ROLE_KEY: string
     }
   }
 }
