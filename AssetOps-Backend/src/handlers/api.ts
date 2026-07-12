@@ -11,6 +11,8 @@ import authenticate from "../plugins/auth"
 import dbPlugin from "../plugins/dbErrorHandler"
 import authRoutes from "../routes/auth"
 import healthRoutes from "../routes/health"
+import dashboardRoutes from "../routes/dashboard"
+import assetRoutes from "../routes/assets"
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -85,6 +87,8 @@ app.after(() => {
   // Register routes
   app.register(healthRoutes, { prefix: "/api" })
   app.register(authRoutes, { prefix: "/api" })
+  app.register(dashboardRoutes, { prefix: "/api" })
+  app.register(assetRoutes, { prefix: "/api" })
 
   // Example of how to protect routes using the authenticate hook:
   app.register(async function protectedRoutes(fastifyPrivate) {
