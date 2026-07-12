@@ -1,6 +1,8 @@
 import fp from "fastify-plugin"
 import type { FastifyInstance, FastifyError, FastifyReply, FastifyRequest } from "fastify"
+import "@fastify/jwt"
 import { getDrizzleClient } from "../db/connection"
+
 
 function extractDbErrorCode(error: FastifyError): string | undefined {
   if (error.code) return error.code

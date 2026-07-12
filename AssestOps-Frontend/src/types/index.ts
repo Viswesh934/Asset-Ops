@@ -122,3 +122,33 @@ export interface SystemNotification {
   time: string
   read: boolean
 }
+
+export interface Department {
+  id: string
+  name: string
+  head: string
+  headUserId?: string | null
+  parentDept: string
+  parentDepartmentId?: string | null
+  status: 'Active' | 'Inactive'
+}
+
+export interface OrgCategory {
+  id: string
+  name: string
+  type: 'Hardware' | 'Software' | 'Facilities' | 'Furniture'
+  description: string
+  status: 'Active' | 'Inactive'
+}
+
+export interface OrgEmployee {
+  id: string
+  name: string
+  email: string
+  department: string
+  departmentId?: string | null
+  role: string
+  status: 'Active' | 'Inactive'
+  userId?: string
+}
+
