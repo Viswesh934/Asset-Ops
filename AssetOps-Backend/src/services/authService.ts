@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs"
 import { eq, and, inArray, sql } from "drizzle-orm"
 import { DrizzleDb } from "../db/connection"
+import { sendTempPasswordEmail } from "./emailService"
 import {
   userMaster,
   userRoleMap,
@@ -149,7 +150,7 @@ export class AuthService {
   }
 
   /**
-   * Reset user's password and return a temporary password
+   * Reset user's password and send it via email — never returns the password in the response.
    */
   static async forgotPassword(email: string, db: DrizzleDb) {
     const emailNormalized = email.toLowerCase()
@@ -171,7 +172,7 @@ export class AuthService {
     const tempPassword = "Temp" + Math.random().toString(36).substring(2, 10).toUpperCase()
     const passwordHash = await bcrypt.hash(tempPassword, 10)
 
-    // 3. Update user_master (set new password and mark resetPassword as true)
+    // 3. Update user_master (set new hashed password and mark resetPassword as true)
     await db
       .update(userMaster)
       .set({
@@ -180,11 +181,60 @@ export class AuthService {
       })
       .where(eq(userMaster.id, user.id))
 
+    // 4. Send temp password via SendGrid — do NOT expose it in the response
+    await sendTempPasswordEmail(user.login, tempPassword)
+
     return {
       success: true,
-      email: user.login,
-      tempPassword,
-      message: "Password reset successful. Use the temporary password to login.",
+      message: "If an account with that email exists, a temporary password has been sent.",
+    }
+  }
+
+  /**
+   * Complete password reset by verifying temp password and setting a new one
+   */
+  static async resetPassword(email: string, tempPassword: string, newPassword: string, db: DrizzleDb) {
+    const emailNormalized = email.toLowerCase()
+
+    // 1. Fetch user from user_master
+    const userArr = await db
+      .select()
+      .from(userMaster)
+      .where(eq(sql`lower(${userMaster.login})`, emailNormalized))
+      .limit(1)
+
+    if (!userArr.length) {
+      throw new Error("User not found")
+    }
+
+    const user = userArr[0]
+
+    // 2. Verify that they actually need a reset
+    if (!user.resetPassword) {
+      throw new Error("Password reset not requested or already completed")
+    }
+
+    // 3. Verify the temporary password
+    const passwordMatch = await bcrypt.compare(tempPassword, user.password)
+    if (!passwordMatch) {
+      throw new Error("Invalid temporary password")
+    }
+
+    // 4. Hash the new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+    // 5. Update password and set resetPassword to false
+    await db
+      .update(userMaster)
+      .set({
+        password: newPasswordHash,
+        resetPassword: false,
+      })
+      .where(eq(userMaster.id, user.id))
+
+    return {
+      success: true,
+      message: "Password updated successfully. You can now login with your new password.",
     }
   }
 }
