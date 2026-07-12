@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { X, Package, Loader2, Upload, File, Trash2 } from "lucide-react"
 import { useAssets } from "../../hooks/useAssets"
-import { uploadAssetFile } from "../../utils/upload"
 
 interface RegisterAssetModalProps {
   isOpen: boolean
@@ -24,8 +23,6 @@ export default function RegisterAssetModal({
   const [location, setLocation] = useState("")
   const [isBookable, setIsBookable] = useState(false)
   const [files, setFiles] = useState<File[]>([])
-  const [uploadingFiles, setUploadingFiles] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -81,7 +78,6 @@ export default function RegisterAssetModal({
     setLocation("")
     setIsBookable(false)
     setFiles([])
-    setUploadProgress(0)
   }
 
   return (

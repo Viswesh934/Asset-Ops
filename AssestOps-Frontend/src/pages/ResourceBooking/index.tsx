@@ -15,7 +15,7 @@ interface ResourceBookingProps {
 }
 
 export default function ResourceBooking({
-  bookings: propBookings,
+  bookings: _propBookings,
   setBookings,
   onAddNotification
 }: ResourceBookingProps) {

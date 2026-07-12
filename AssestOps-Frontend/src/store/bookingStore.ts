@@ -96,7 +96,6 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     const token = localStorage.getItem('token')
 
     // Local overlap validation before API or local state update
-    const prevBookings = get().bookings
     const startObj = new Date(`${data.date}T${data.startTime}`)
     const endObj = new Date(`${data.date}T${data.endTime}`)
 
