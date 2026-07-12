@@ -36,21 +36,21 @@ export default function TableTab({ bookings }: TableTabProps) {
                 <td>
                   <span className={`badge ${
                     book.status === 'Completed' ? 'badge-success' :
-                    book.status === 'Ongoing' ? 'badge-info' :
+                    book.status === 'Ongoing' ? 'badge-warning' :
                     book.status === 'Upcoming' ? 'badge-info' : 'badge-danger'
                   }`}
                     style={{
                       backgroundColor: 
                         book.status === 'Completed' ? 'rgba(16, 185, 129, 0.1)' :
-                        book.status === 'Ongoing' ? 'rgba(16, 185, 129, 0.1)' :
+                        book.status === 'Ongoing' ? 'rgba(168, 85, 247, 0.1)' :
                         book.status === 'Upcoming' ? 'rgba(29, 110, 228, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                       color:
                         book.status === 'Completed' ? '#34d399' :
-                        book.status === 'Ongoing' ? '#34d399' :
+                        book.status === 'Ongoing' ? '#c084fc' :
                         book.status === 'Upcoming' ? '#60a5fa' : '#fca5a5',
                       border:
                         book.status === 'Completed' ? '1px solid rgba(16, 185, 129, 0.2)' :
-                        book.status === 'Ongoing' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                        book.status === 'Ongoing' ? '1px solid rgba(168, 85, 247, 0.2)' :
                         book.status === 'Upcoming' ? '1px solid rgba(29, 110, 228, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)'
                     }}
                   >
