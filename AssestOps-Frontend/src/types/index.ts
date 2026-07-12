@@ -106,7 +106,7 @@ export interface Booking {
   user: string
   date: string
   timeSlot: string
-  status: 'Confirmed' | 'Pending Approval' | 'Cancelled'
+  status: 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled'
 }
 
 export interface MaintenanceTicket {
