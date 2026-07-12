@@ -34,12 +34,21 @@ export interface ReturnDetail {
   daysOverdue?: number
 }
 
+export interface ActivityItem {
+  id: string
+  type: 'allocation' | 'booking' | 'maintenance'
+  title: string
+  description: string
+  timestamp: string
+}
+
 export interface DashboardData {
   role: string
   departmentName?: string | null
   kpis: KPICards
   overdueReturnsList: ReturnDetail[]
   upcomingReturnsList: ReturnDetail[]
+  recentActivities: ActivityItem[]
 }
 
 /**
@@ -210,6 +219,8 @@ async function getAdminSnapshot(db: DrizzleDb): Promise<DashboardData> {
     expectedReturnDate: item.expectedReturnDate!,
   }))
 
+  const recentActivities = await getRecentActivities(db)
+
   return {
     role: "Admin/Asset Manager",
     kpis: {
@@ -225,6 +236,7 @@ async function getAdminSnapshot(db: DrizzleDb): Promise<DashboardData> {
     },
     overdueReturnsList,
     upcomingReturnsList,
+    recentActivities,
   }
 }
 
@@ -430,6 +442,8 @@ async function getDepartmentHeadSnapshot(deptId: string, deptName: string | null
     expectedReturnDate: item.expectedReturnDate!,
   }))
 
+  const recentActivities = await getDeptHeadRecentActivities(deptId, db)
+
   return {
     role: "Department Head",
     departmentName: resolvedDeptName,
@@ -446,6 +460,7 @@ async function getDepartmentHeadSnapshot(deptId: string, deptName: string | null
     },
     overdueReturnsList,
     upcomingReturnsList,
+    recentActivities,
   }
 }
 
@@ -606,6 +621,8 @@ async function getEmployeeSnapshot(userId: string, emp: any, db: DrizzleDb): Pro
     expectedReturnDate: item.expectedReturnDate!,
   }))
 
+  const recentActivities = await getEmployeeRecentActivities(userId, employeeId, db)
+
   return {
     role: "Employee",
     kpis: {
@@ -621,6 +638,7 @@ async function getEmployeeSnapshot(userId: string, emp: any, db: DrizzleDb): Pro
     },
     overdueReturnsList,
     upcomingReturnsList,
+    recentActivities,
   }
 }
 
@@ -660,4 +678,269 @@ export async function getDashboardSnapshot(userId: string, roles: string[], db: 
   }
 
   return getEmployeeSnapshot(userId, userEmployee, db)
+}
+
+async function getRecentActivities(db: DrizzleDb): Promise<ActivityItem[]> {
+  const activities: ActivityItem[] = []
+
+  // 1. Get allocations
+  const allocs = await db
+    .select({
+      id: assetAllocation.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      targetType: assetAllocation.targetType,
+      employeeName: employee.name,
+      departmentName: department.name,
+      createdAt: assetAllocation.createdAt,
+    })
+    .from(assetAllocation)
+    .innerJoin(asset, eq(assetAllocation.assetId, asset.id))
+    .leftJoin(employee, eq(assetAllocation.employeeId, employee.id))
+    .leftJoin(department, eq(assetAllocation.departmentId, department.id))
+    .orderBy(sql`${assetAllocation.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of allocs) {
+    const target = item.targetType === "Employee" 
+      ? (item.employeeName || "Unknown Employee") 
+      : (item.departmentName || "Unknown Department")
+    activities.push({
+      id: item.id,
+      type: 'allocation',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `allocated to ${target}`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  // 2. Get bookings
+  const bookings = await db
+    .select({
+      id: resourceBooking.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      startTime: resourceBooking.startTime,
+      endTime: resourceBooking.endTime,
+      createdAt: resourceBooking.createdAt,
+    })
+    .from(resourceBooking)
+    .innerJoin(asset, eq(resourceBooking.assetId, asset.id))
+    .orderBy(sql`${resourceBooking.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of bookings) {
+    const startStr = new Date(item.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    const endStr = new Date(item.endTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    activities.push({
+      id: item.id,
+      type: 'booking',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `booking confirmed - ${startStr} to ${endStr}`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  // 3. Get maintenance
+  const maintRequests = await db
+    .select({
+      id: maintenanceRequest.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      issue: maintenanceRequest.issueDescription,
+      status: maintenanceRequest.status,
+      createdAt: maintenanceRequest.createdAt,
+    })
+    .from(maintenanceRequest)
+    .innerJoin(asset, eq(maintenanceRequest.assetId, asset.id))
+    .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of maintRequests) {
+    activities.push({
+      id: item.id,
+      type: 'maintenance',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `maintenance ticket ${item.status.toLowerCase()} (${item.issue})`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  return activities
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
+}
+
+async function getDeptHeadRecentActivities(deptId: string, db: DrizzleDb): Promise<ActivityItem[]> {
+  const activities: ActivityItem[] = []
+
+  const allocs = await db
+    .select({
+      id: assetAllocation.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      targetType: assetAllocation.targetType,
+      employeeName: employee.name,
+      departmentName: department.name,
+      createdAt: assetAllocation.createdAt,
+    })
+    .from(assetAllocation)
+    .innerJoin(asset, eq(assetAllocation.assetId, asset.id))
+    .leftJoin(employee, eq(assetAllocation.employeeId, employee.id))
+    .leftJoin(department, eq(assetAllocation.departmentId, department.id))
+    .where(eq(asset.departmentId, deptId))
+    .orderBy(sql`${assetAllocation.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of allocs) {
+    const target = item.targetType === "Employee" 
+      ? (item.employeeName || "Unknown Employee") 
+      : (item.departmentName || "Unknown Department")
+    activities.push({
+      id: item.id,
+      type: 'allocation',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `allocated to ${target}`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  const bookings = await db
+    .select({
+      id: resourceBooking.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      startTime: resourceBooking.startTime,
+      endTime: resourceBooking.endTime,
+      createdAt: resourceBooking.createdAt,
+    })
+    .from(resourceBooking)
+    .innerJoin(asset, eq(resourceBooking.assetId, asset.id))
+    .where(eq(resourceBooking.bookedForDepartmentId, deptId))
+    .orderBy(sql`${resourceBooking.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of bookings) {
+    const startStr = new Date(item.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    const endStr = new Date(item.endTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    activities.push({
+      id: item.id,
+      type: 'booking',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `booking confirmed - ${startStr} to ${endStr}`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  const maintRequests = await db
+    .select({
+      id: maintenanceRequest.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      issue: maintenanceRequest.issueDescription,
+      status: maintenanceRequest.status,
+      createdAt: maintenanceRequest.createdAt,
+    })
+    .from(maintenanceRequest)
+    .innerJoin(asset, eq(maintenanceRequest.assetId, asset.id))
+    .where(eq(asset.departmentId, deptId))
+    .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of maintRequests) {
+    activities.push({
+      id: item.id,
+      type: 'maintenance',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `maintenance ticket ${item.status.toLowerCase()} (${item.issue})`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  return activities
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
+}
+
+async function getEmployeeRecentActivities(userId: string, employeeId: string, db: DrizzleDb): Promise<ActivityItem[]> {
+  const activities: ActivityItem[] = []
+
+  const allocs = await db
+    .select({
+      id: assetAllocation.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      createdAt: assetAllocation.createdAt,
+    })
+    .from(assetAllocation)
+    .innerJoin(asset, eq(assetAllocation.assetId, asset.id))
+    .where(eq(assetAllocation.employeeId, employeeId))
+    .orderBy(sql`${assetAllocation.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of allocs) {
+    activities.push({
+      id: item.id,
+      type: 'allocation',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `allocated to you`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  const bookings = await db
+    .select({
+      id: resourceBooking.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      startTime: resourceBooking.startTime,
+      endTime: resourceBooking.endTime,
+      createdAt: resourceBooking.createdAt,
+    })
+    .from(resourceBooking)
+    .innerJoin(asset, eq(resourceBooking.assetId, asset.id))
+    .where(eq(resourceBooking.bookedByUserId, userId))
+    .orderBy(sql`${resourceBooking.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of bookings) {
+    const startStr = new Date(item.startTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    const endStr = new Date(item.endTime).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    activities.push({
+      id: item.id,
+      type: 'booking',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `booking confirmed - ${startStr} to ${endStr}`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  const maintRequests = await db
+    .select({
+      id: maintenanceRequest.id,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      issue: maintenanceRequest.issueDescription,
+      status: maintenanceRequest.status,
+      createdAt: maintenanceRequest.createdAt,
+    })
+    .from(maintenanceRequest)
+    .innerJoin(asset, eq(maintenanceRequest.assetId, asset.id))
+    .where(eq(maintenanceRequest.raisedByUserId, userId))
+    .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+    .limit(5)
+
+  for (const item of maintRequests) {
+    activities.push({
+      id: item.id,
+      type: 'maintenance',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `maintenance ticket ${item.status.toLowerCase()} (${item.issue})`,
+      timestamp: item.createdAt,
+    })
+  }
+
+  return activities
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
 }

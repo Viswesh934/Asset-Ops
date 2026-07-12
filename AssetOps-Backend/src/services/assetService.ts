@@ -1,10 +1,14 @@
-import { eq, and, ne } from "drizzle-orm"
+import { eq, and, ne, or, ilike, sql } from "drizzle-orm"
 import { DrizzleDb } from "../db/connection"
 import {
   asset,
   resourceBooking,
   notification,
   assetCategory,
+  assetAllocation,
+  employee,
+  department,
+  activityLog,
 } from "../db/schema"
 
 /**
@@ -126,4 +130,221 @@ export async function listCategories(db: DrizzleDb) {
     .select()
     .from(assetCategory)
     .where(eq(assetCategory.status, "Active"))
+}
+
+/**
+ * List all assets with search/filters and enrichment of active allocations
+ */
+export async function listAssets(
+  filters: {
+    search?: string
+    category?: string
+    status?: string
+    location?: string
+  },
+  db: DrizzleDb
+) {
+  const query = db
+    .select({
+      id: asset.id,
+      assetTag: asset.assetTag,
+      name: asset.name,
+      categoryId: asset.categoryId,
+      categoryName: assetCategory.name,
+      serialNumber: asset.serialNumber,
+      qrCode: asset.qrCode,
+      acquisitionDate: asset.acquisitionDate,
+      acquisitionCost: asset.acquisitionCost,
+      condition: asset.condition,
+      location: asset.location,
+      departmentId: asset.departmentId,
+      isBookable: asset.isBookable,
+      status: asset.status,
+    })
+    .from(asset)
+    .innerJoin(assetCategory, eq(asset.categoryId, assetCategory.id))
+
+  const conditions = []
+
+  if (filters.search) {
+    conditions.push(
+      or(
+        ilike(asset.name, `%${filters.search}%`),
+        ilike(asset.assetTag, `%${filters.search}%`),
+        ilike(asset.serialNumber, `%${filters.search}%`)
+      )
+    )
+  }
+
+  if (filters.category && filters.category !== "All") {
+    conditions.push(eq(assetCategory.name, filters.category))
+  }
+
+  if (filters.status) {
+    conditions.push(eq(asset.status, filters.status as any))
+  }
+
+  if (filters.location) {
+    conditions.push(ilike(asset.location, `%${filters.location}%`))
+  }
+
+  const finalQuery = conditions.length > 0 ? query.where(and(...conditions)) : query
+  const results = await finalQuery.orderBy(asset.assetTag)
+
+  const enrichedResults = []
+  for (const item of results) {
+    let assignedTo = ""
+    if (item.status === "Allocated") {
+      const activeAlloc = await db
+        .select({
+          targetType: assetAllocation.targetType,
+          employeeName: employee.name,
+          departmentName: department.name,
+        })
+        .from(assetAllocation)
+        .leftJoin(employee, eq(assetAllocation.employeeId, employee.id))
+        .leftJoin(department, eq(assetAllocation.departmentId, department.id))
+        .where(and(eq(assetAllocation.assetId, item.id), eq(assetAllocation.status, "Active")))
+        .limit(1)
+
+      if (activeAlloc[0]) {
+        assignedTo = activeAlloc[0].targetType === "Employee"
+          ? (activeAlloc[0].employeeName || "Employee")
+          : (activeAlloc[0].departmentName || "Department")
+      }
+    }
+    enrichedResults.push({
+      ...item,
+      serialNo: item.serialNumber || "",
+      assignedTo: assignedTo,
+      category: item.categoryName,
+    })
+  }
+
+  return enrichedResults
+}
+
+/**
+ * Get individual asset details with history
+ */
+export async function getAssetDetail(assetId: string, db: DrizzleDb) {
+  const arr = await db
+    .select({
+      id: asset.id,
+      assetTag: asset.assetTag,
+      name: asset.name,
+      categoryId: asset.categoryId,
+      categoryName: assetCategory.name,
+      serialNumber: asset.serialNumber,
+      qrCode: asset.qrCode,
+      acquisitionDate: asset.acquisitionDate,
+      acquisitionCost: asset.acquisitionCost,
+      condition: asset.condition,
+      location: asset.location,
+      departmentId: asset.departmentId,
+      isBookable: asset.isBookable,
+      status: asset.status,
+    })
+    .from(asset)
+    .innerJoin(assetCategory, eq(asset.categoryId, assetCategory.id))
+    .where(eq(asset.id, assetId))
+    .limit(1)
+
+  if (arr.length === 0) {
+    throw new Error("Asset not found")
+  }
+
+  const item = arr[0]
+
+  const activeAlloc = await db
+    .select({
+      id: assetAllocation.id,
+      targetType: assetAllocation.targetType,
+      employeeName: employee.name,
+      departmentName: department.name,
+      allocatedDate: assetAllocation.allocatedDate,
+      expectedReturnDate: assetAllocation.expectedReturnDate,
+    })
+    .from(assetAllocation)
+    .leftJoin(employee, eq(assetAllocation.employeeId, employee.id))
+    .leftJoin(department, eq(assetAllocation.departmentId, department.id))
+    .where(and(eq(assetAllocation.assetId, assetId), eq(assetAllocation.status, "Active")))
+    .limit(1)
+
+  const history = await db
+    .select({
+      id: assetAllocation.id,
+      targetType: assetAllocation.targetType,
+      employeeName: employee.name,
+      departmentName: department.name,
+      allocatedDate: assetAllocation.allocatedDate,
+      actualReturnDate: assetAllocation.actualReturnDate,
+      status: assetAllocation.status,
+    })
+    .from(assetAllocation)
+    .leftJoin(employee, eq(assetAllocation.employeeId, employee.id))
+    .leftJoin(department, eq(assetAllocation.departmentId, department.id))
+    .where(eq(assetAllocation.assetId, assetId))
+    .orderBy(sql`${assetAllocation.allocatedDate} DESC`)
+
+  return {
+    ...item,
+    serialNo: item.serialNumber || "",
+    category: item.categoryName,
+    activeAllocation: activeAlloc[0] || null,
+    history,
+  }
+}
+
+/**
+ * Register a new asset in the system
+ */
+export async function registerAsset(
+  data: {
+    name: string
+    categoryId: string
+    serialNumber?: string
+    acquisitionDate?: string
+    acquisitionCost?: number
+    condition?: "New" | "Good" | "Fair" | "Poor" | "Damaged"
+    location?: string
+    departmentId?: string
+    isBookable?: boolean
+  },
+  userId: string,
+  db: DrizzleDb
+) {
+  const countRes = await db.select({ count: sql<number>`count(*)::int` }).from(asset)
+  const nextNum = (countRes[0]?.count || 0) + 1
+  const tag = `AF-${String(nextNum).padStart(4, "0")}`
+
+  const [newAsset] = await db
+    .insert(asset)
+    .values({
+      name: data.name,
+      assetTag: tag,
+      categoryId: data.categoryId,
+      serialNumber: data.serialNumber || null,
+      acquisitionDate: data.acquisitionDate || null,
+      acquisitionCost: data.acquisitionCost ? String(data.acquisitionCost) : null,
+      condition: data.condition || "Good",
+      location: data.location || null,
+      departmentId: data.departmentId || null,
+      isBookable: data.isBookable || false,
+      status: "Available",
+      createdBy: userId,
+      updatedBy: userId,
+    })
+    .returning()
+
+  await db.insert(activityLog).values({
+    actorUserId: userId,
+    action: "REGISTER_ASSET",
+    entityType: "asset",
+    entityId: newAsset.id,
+    details: JSON.stringify({ name: newAsset.name, assetTag: newAsset.assetTag }),
+    createdBy: userId,
+  })
+
+  return newAsset
 }

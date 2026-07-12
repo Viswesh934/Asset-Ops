@@ -54,7 +54,7 @@ export function useAudits() {
       const data = await api.get<AuditCycle[]>("/audits")
       setCycles(data)
     } catch (err: any) {
-      setError(err?.message || "Failed to fetch audit cycles")
+      setError(err.message || "Failed to fetch audit cycles")
     } finally {
       setLoading(false)
     }
@@ -67,7 +67,7 @@ export function useAudits() {
       await api.post("/audits", payload)
       return true
     } catch (err: any) {
-      setError(err?.message || "Failed to launch audit cycle")
+      setError(err.message || "Failed to launch audit cycle")
       return false
     } finally {
       setLoading(false)
@@ -81,7 +81,7 @@ export function useAudits() {
       const data = await api.get<AuditItem[]>(`/audits/${cycleId}/items`)
       setItems(data)
     } catch (err: any) {
-      setError(err?.message || "Failed to fetch audit items")
+      setError(err.message || "Failed to fetch audit items")
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,7 @@ export function useAudits() {
       setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...updated } : i)))
       return true
     } catch (err: any) {
-      setError(err?.message || "Failed to verify audit item")
+      setError(err.message || "Failed to verify audit item")
       return false
     } finally {
       setLoading(false)
@@ -112,7 +112,7 @@ export function useAudits() {
       )
       return true
     } catch (err: any) {
-      setError(err?.message || "Failed to close audit cycle")
+      setError(err.message || "Failed to close audit cycle")
       return false
     } finally {
       setLoading(false)
