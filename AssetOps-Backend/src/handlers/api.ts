@@ -26,6 +26,8 @@ import getDepartmentsRoutes from "../routes/organization-setup/getDepartments"
 import getEmployeesRoutes from "../routes/organization-setup/getEmployees"
 import getCategoriesRoutes from "../routes/organization-setup/getCategories"
 import addItemRoutes from "../routes/organization-setup/addItem"
+import attachmentRoutes from "../routes/attachments"
+import notificationRoutes from "../routes/notifications"
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -122,6 +124,8 @@ app.after(() => {
     fastifyPrivate.register(getEmployeesRoutes)
     fastifyPrivate.register(getCategoriesRoutes)
     fastifyPrivate.register(addItemRoutes)
+    fastifyPrivate.register(attachmentRoutes)
+    fastifyPrivate.register(notificationRoutes)
 
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }

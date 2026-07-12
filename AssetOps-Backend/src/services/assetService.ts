@@ -1,4 +1,5 @@
 import { eq, and, ne, or, ilike, sql } from "drizzle-orm"
+import { SupabaseClient } from "@supabase/supabase-js"
 import { DrizzleDb } from "../db/connection"
 import {
   asset,
@@ -6,9 +7,12 @@ import {
   notification,
   assetCategory,
   assetAllocation,
+  assetAttachment,
+  maintenanceRequest,
   employee,
   department,
   activityLog,
+  userMaster
 } from "../db/schema"
 
 /**
@@ -225,9 +229,13 @@ export async function listAssets(
 }
 
 /**
- * Get individual asset details with history
+ * Get individual asset details with history and attachments
  */
-export async function getAssetDetail(assetId: string, db: DrizzleDb) {
+export async function getAssetDetail(
+  assetId: string,
+  db: DrizzleDb,
+  supabase?: SupabaseClient
+) {
   const arr = await db
     .select({
       id: asset.id,
@@ -287,12 +295,55 @@ export async function getAssetDetail(assetId: string, db: DrizzleDb) {
     .where(eq(assetAllocation.assetId, assetId))
     .orderBy(sql`${assetAllocation.allocatedDate} DESC`)
 
+  // Fetch attachments with signed download URLs
+  const attachmentRows = await db
+    .select()
+    .from(assetAttachment)
+    .where(eq(assetAttachment.assetId, assetId))
+    .orderBy(sql`${assetAttachment.createdAt} DESC`)
+
+  const attachments = await Promise.all(
+    attachmentRows.map(async (row) => {
+      let signedUrl: string | null = null
+      if (supabase) {
+        const storagePath = extractStoragePath(row.fileUrl)
+        if (storagePath) {
+          const { data, error } = await supabase.storage
+            .from("asset-attachments")
+            .createSignedUrl(storagePath, 3600)
+          if (!error) {
+            signedUrl = data.signedUrl
+          }
+        }
+      }
+      return { ...row, signedUrl }
+    })
+  )
+
+  // Fetch maintenance history
+  const maintenanceHistory = await db
+    .select({
+      id: maintenanceRequest.id,
+      issueDescription: maintenanceRequest.issueDescription,
+      priority: maintenanceRequest.priority,
+      status: maintenanceRequest.status,
+      resolutionNotes: maintenanceRequest.resolutionNotes,
+      raisedByUserName: userMaster.username,
+      createdAt: maintenanceRequest.createdAt,
+    })
+    .from(maintenanceRequest)
+    .leftJoin(userMaster, eq(maintenanceRequest.raisedByUserId, userMaster.id))
+    .where(eq(maintenanceRequest.assetId, assetId))
+    .orderBy(sql`${maintenanceRequest.createdAt} DESC`)
+
   return {
     ...item,
     serialNo: item.serialNumber || "",
     category: item.categoryName,
     activeAllocation: activeAlloc[0] || null,
     history,
+    attachments,
+    maintenanceHistory,
   }
 }
 
@@ -347,4 +398,17 @@ export async function registerAsset(
   })
 
   return newAsset
+}
+
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = "/storage/v1/object/public/"
+  const idx = publicUrl.indexOf(marker)
+  if (idx === -1) return null
+
+  const rest = publicUrl.slice(idx + marker.length)
+  const slashIdx = rest.indexOf("/")
+  if (slashIdx === -1) return null
+
+  const bucketAndPath = rest.slice(slashIdx + 1)
+  return decodeURIComponent(bucketAndPath)
 }

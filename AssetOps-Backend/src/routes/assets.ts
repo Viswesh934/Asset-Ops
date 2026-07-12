@@ -51,7 +51,7 @@ export default async function assetRoutes(fastify: FastifyInstance) {
       try {
         const db = getDrizzleClient(fastify)
         const { id } = request.params as { id: string }
-        const details = await getAssetDetail(id, db)
+        const details = await getAssetDetail(id, db, fastify.supabase)
         return details
       } catch (error: any) {
         request.log.error(error)

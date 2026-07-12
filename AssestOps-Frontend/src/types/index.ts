@@ -41,12 +41,9 @@ export interface AssetAttachment {
   id: string
   assetId: string
   fileUrl: string
-}
-
-export interface AssetDetail extends Asset {
-  attachments: AssetAttachment[]
-  allocations: AssetAllocation[]
-  maintenance: MaintenanceRequest[]
+  fileName: string | null
+  fileType: string | null
+  signedUrl?: string | null
 }
 
 export interface AuditCycle {
@@ -85,6 +82,8 @@ export interface AssetDetail extends Asset {
   isBookable: boolean
   activeAllocation?: any
   history?: any[]
+  attachments?: AssetAttachment[]
+  maintenanceHistory?: MaintenanceRequest[]
 }
 
 export interface Booking {

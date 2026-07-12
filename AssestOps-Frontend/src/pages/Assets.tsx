@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   Plus,
   Search,
@@ -11,12 +11,16 @@ import {
   Wrench,
   AlertCircle,
   Package,
+  Upload,
+  File,
+  Paperclip,
 } from "lucide-react"
 import { useAssets } from "../hooks/useAssets"
 import RegisterAssetModal from "../components/modals/RegisterAssetModal"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 import { Badge } from "../components/ui/badge"
+import { uploadAssetFile } from "../utils/upload"
 
 export default function Assets() {
   const {
@@ -36,7 +40,9 @@ export default function Assets() {
   const [selectedStatus, setSelectedStatus] = useState("All")
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
-  const [detailTab, setDetailTab] = useState<"allocations" | "maintenance">("allocations")
+  const [detailTab, setDetailTab] = useState<"allocations" | "maintenance" | "attachments">("allocations")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchAssets()
@@ -70,6 +76,21 @@ export default function Assets() {
       fetchAssets({ search, category: selectedCategory, status: selectedStatus })
     }
     return success
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedAssetDetail) return
+    setUploading(true)
+    try {
+      await uploadAssetFile(selectedAssetDetail.id, file)
+      await fetchAssetDetails(selectedAssetDetail.id)
+    } catch (err) {
+      console.error("Upload failed:", err)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
   }
 
   // Calculate statistics for visual cards
@@ -337,7 +358,15 @@ export default function Assets() {
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${detailTab === "maintenance" ? "bg-white/10 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
                     }`}
                 >
-                  <Wrench size={13} /> Maintenance Log
+                  <Wrench size={13} /> Maintenance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailTab("attachments")}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${detailTab === "attachments" ? "bg-white/10 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  <Paperclip size={13} /> Attachments
                 </button>
               </div>
 
@@ -345,10 +374,10 @@ export default function Assets() {
               <div className="space-y-4 min-h-[160px]">
                 {detailTab === "allocations" && (
                   <div className="space-y-3">
-                    {selectedAssetDetail.allocations.length === 0 ? (
+                    {selectedAssetDetail.history?.length === 0 || !selectedAssetDetail.history ? (
                       <p className="text-center text-sm text-slate-500 py-8">No allocation records for this asset.</p>
                     ) : (
-                      selectedAssetDetail.allocations.map((alloc) => (
+                      selectedAssetDetail.history.map((alloc: any) => (
                         <div key={alloc.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-start justify-between">
                           <div>
                             <p className="text-sm font-semibold text-white">
@@ -375,10 +404,10 @@ export default function Assets() {
 
                 {detailTab === "maintenance" && (
                   <div className="space-y-3">
-                    {selectedAssetDetail.maintenance.length === 0 ? (
+                    {(!selectedAssetDetail.maintenanceHistory || selectedAssetDetail.maintenanceHistory.length === 0) ? (
                       <p className="text-center text-sm text-slate-500 py-8">No maintenance tickets logged.</p>
                     ) : (
-                      selectedAssetDetail.maintenance.map((ticket) => (
+                      selectedAssetDetail.maintenanceHistory.map((ticket) => (
                         <div key={ticket.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold text-white">{ticket.issueDescription}</span>
@@ -396,6 +425,59 @@ export default function Assets() {
                             <p className="text-xs text-slate-400 mt-2 bg-black/20 p-2 rounded-lg border border-white/[0.04]">
                               Resolution: {ticket.resolutionNotes}
                             </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {detailTab === "attachments" && (
+                  <div className="space-y-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full py-3 border-2 border-dashed border-white/[0.1] rounded-xl text-sm text-slate-400 hover:border-orange-500/40 hover:text-orange-400 transition-all flex items-center justify-center gap-2"
+                    >
+                      {uploading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={14} /> Upload Photo or Document
+                        </>
+                      )}
+                    </button>
+                    {(!selectedAssetDetail.attachments || selectedAssetDetail.attachments.length === 0) ? (
+                      <p className="text-center text-sm text-slate-500 py-4">No files uploaded yet.</p>
+                    ) : (
+                      selectedAssetDetail.attachments.map((att) => (
+                        <div key={att.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <File size={16} className="text-slate-400" />
+                            <div>
+                              <p className="text-sm font-medium text-white">{att.fileName || "Unnamed file"}</p>
+                              <p className="text-xs text-slate-500">{att.fileType || "Unknown type"}</p>
+                            </div>
+                          </div>
+                          {att.signedUrl && (
+                            <a
+                              href={att.signedUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white rounded-lg text-xs font-semibold transition-all"
+                            >
+                              View
+                            </a>
                           )}
                         </div>
                       ))
