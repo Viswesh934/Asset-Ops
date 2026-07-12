@@ -9,11 +9,16 @@ import fastifyJwt from "@fastify/jwt";
 import { createAppLoggerConfig } from "../lib/logger";
 import authenticate from "../plugins/auth";
 import dbPlugin from "../plugins/dbErrorHandler";
+import { getDrizzleClient } from "../db/connection"
 import supabasePlugin from "../plugins/supabase";
 import authRoutes from "../routes/auth";
 import healthRoutes from "../routes/health";
 import dashboardRoutes from "../routes/dashboard";
-import assetRoutes from "../routes/assets";
+import assetRoutes from "../routes/assets"
+import auditRoutes from "../routes/audits"
+import { initSendGrid } from "../services/emailService"
+import { userMaster, department, activityLog } from "../db/schema"
+import { sql, eq } from "drizzle-orm"
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -26,12 +31,7 @@ app.register(fastifyEnv, {
   confKey: "config",
   schema: {
     type: "object",
-    required: [
-      "DATABASE_URL",
-      "JWT_SECRET",
-      "SUPABASE_URL",
-      "SUPABASE_SERVICE_ROLE_KEY",
-    ],
+    required: ["DATABASE_URL", "JWT_SECRET", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SEND_GRID"],
     properties: {
       NODE_ENV: { type: "string", default: "local" },
       DATABASE_URL: { type: "string" },
@@ -41,6 +41,7 @@ app.register(fastifyEnv, {
       FRONTEND_ORIGIN: { type: "string", default: "http://localhost:5173" },
       SUPABASE_URL: { type: "string" },
       SUPABASE_SERVICE_ROLE_KEY: { type: "string" },
+      SEND_GRID: { type: "string" },
     },
   },
   dotenv: true,
@@ -65,6 +66,9 @@ app.register(helmet, {
 
 app.after(() => {
   const config = (app as any).config;
+
+  // Initialize SendGrid with API key
+  initSendGrid(config.SEND_GRID)
 
   const allowedOrigins = (config.FRONTEND_ORIGIN ?? "")
     .split(",")
@@ -103,7 +107,7 @@ app.after(() => {
   app.register(dashboardRoutes, { prefix: "/api" });
   app.register(assetRoutes, { prefix: "/api" });
 
-  // Example of how to protect routes using the authenticate hook:
+  // Register protected routes (require JWT verification)
   app.register(async function protectedRoutes(fastifyPrivate) {
     fastifyPrivate.addHook("preHandler", fastifyPrivate.authenticate);
 
@@ -116,15 +120,16 @@ app.after(() => {
 declare module "fastify" {
   interface FastifyInstance {
     config: {
-      NODE_ENV: string;
-      DATABASE_URL: string;
-      JWT_SECRET: string;
-      JWT_EXPIRES_IN: string;
-      PORT: string;
-      FRONTEND_ORIGIN: string;
-      SUPABASE_URL: string;
-      SUPABASE_SERVICE_ROLE_KEY: string;
-    };
+      NODE_ENV: string
+      DATABASE_URL: string
+      JWT_SECRET: string
+      JWT_EXPIRES_IN: string
+      PORT: string
+      FRONTEND_ORIGIN: string
+      SUPABASE_URL: string
+      SUPABASE_SERVICE_ROLE_KEY: string
+      SEND_GRID: string
+    }
   }
 }
 
