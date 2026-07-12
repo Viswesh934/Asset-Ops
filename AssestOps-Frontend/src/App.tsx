@@ -10,7 +10,9 @@ import Maintenance from './pages/Maintenance'
 import Audit from './pages/Audit'
 import Reports from './pages/Reports'
 import Notifications from './pages/Notifications'
+import ActivityLog from './pages/ActivityLog'
 import Login from './pages/Login'
+
 
 function AuthGate() {
   const { token, setToken, setUserEmail } = useAppContext()
@@ -37,6 +39,7 @@ function AuthGate() {
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/activity-log" element={<ActivityLog />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
