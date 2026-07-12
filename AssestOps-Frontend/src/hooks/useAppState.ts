@@ -1,5 +1,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Booking, MaintenanceTicket, SystemNotification } from '../types'
+import { useBookingStore } from '../store/bookingStore'
+
+function getBookingStartEndDates(dateStr: string, timeSlotStr: string) {
+  try {
+    const [startStr] = timeSlotStr.split("-").map(s => s.trim())
+    const [time, modifier] = startStr.split(" ")
+    let [hoursStr, minutesStr] = time.split(":")
+    let hours = parseInt(hoursStr, 10)
+    let minutes = parseInt(minutesStr, 10) || 0
+    if (modifier === "PM" && hours < 12) {
+      hours += 12
+    }
+    if (modifier === "AM" && hours === 12) {
+      hours = 0
+    }
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day, hours, minutes)
+  } catch (e) {
+    return null
+  }
+}
 
 export function useAppState() {
   // Authentication State
@@ -57,6 +78,43 @@ export function useAppState() {
     })
   }, [])
 
+  // Dynamic Reminder Notification check from Zustand store
+  const storeBookings = useBookingStore(state => state.bookings)
+
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date()
+      storeBookings.forEach((booking) => {
+        if (booking.status !== 'Upcoming') return
+
+        const startObj = getBookingStartEndDates(booking.date, booking.timeSlot)
+        if (!startObj) return
+
+        const diffMs = startObj.getTime() - now.getTime()
+        const fifteenMinutesMs = 15 * 60 * 1000
+
+        // If the booking starts in 15 minutes or less, and hasn't started yet
+        if (diffMs > 0 && diffMs <= fifteenMinutesMs) {
+          // Check if we already have a notification for this booking ID
+          const exists = notifications.some(
+            n => n.title === 'Booking Reminder' && n.message.includes(booking.id)
+          )
+          if (!exists) {
+            addNotification(
+              'warning',
+              'Booking Reminder',
+              `Your reservation ${booking.id} for ${booking.resource} starts in less than 15 minutes (${booking.timeSlot})!`
+            )
+          }
+        }
+      })
+    }
+
+    checkReminders()
+    const timer = setInterval(checkReminders, 15000)
+    return () => clearInterval(timer)
+  }, [storeBookings, notifications, addNotification])
+
   const handleBookResource = useCallback((bookingData: {
     resource: string
     user: string
@@ -104,6 +162,8 @@ export function useAppState() {
     refetchKey,
     triggerRefetch,
     bookings,
+    setBookings,
+    addNotification,
     maintenance,
     notifications,
     showRegisterModal,

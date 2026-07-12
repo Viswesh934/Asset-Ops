@@ -25,7 +25,7 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   employees: [],
   loading: false,
   error: null,
-  token: null,
+  token: localStorage.getItem("token"),
 
   login: async (email, password) => {
     set({ loading: true, error: null })
@@ -84,7 +84,7 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   },
 
   fetchAll: async () => {
-    const token = get().token
+    const token = get().token || localStorage.getItem('token')
     if (!token) return
 
     set({ loading: true, error: null })

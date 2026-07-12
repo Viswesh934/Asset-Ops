@@ -20,6 +20,7 @@ export async function bookResource(
     startTime: string
     endTime: string
     bookedForDepartmentId?: string | null
+    employeeId?: string | null
   },
   userId: string,
   db: DrizzleDb
@@ -51,6 +52,10 @@ export async function bookResource(
       throw new Error("Start time must be before end time")
     }
 
+    if (start.getTime() < Date.now() - 60000) {
+      throw new Error("Cannot book slots in the past")
+    }
+
     const existingBookings = await tx
       .select()
       .from(resourceBooking)
@@ -77,11 +82,24 @@ export async function bookResource(
       status = "Ongoing"
     }
 
+    // Resolve target userId if employeeId is specified
+    let targetUserId = userId
+    if (data.employeeId) {
+      const empArr = await tx
+        .select({ userId: employee.userId })
+        .from(employee)
+        .where(eq(employee.id, data.employeeId))
+        .limit(1)
+      if (empArr.length > 0) {
+        targetUserId = empArr[0].userId
+      }
+    }
+
     const [newBooking] = await tx
       .insert(resourceBooking)
       .values({
         assetId: data.assetId,
-        bookedByUserId: userId,
+        bookedByUserId: targetUserId,
         bookedForDepartmentId: data.bookedForDepartmentId || null,
         startTime: data.startTime,
         endTime: data.endTime,
@@ -94,7 +112,7 @@ export async function bookResource(
     const friendlyStart = start.toLocaleString()
     const friendlyEnd = end.toLocaleString()
     await tx.insert(notification).values({
-      userId,
+      userId: targetUserId,
       type: "Booking Confirmed",
       message: `Booking confirmed for ${selectedAsset.name} from ${friendlyStart} to ${friendlyEnd}.`,
       relatedEntityType: "resource_booking",
@@ -347,4 +365,188 @@ export async function registerAsset(
   })
 
   return newAsset
+}
+
+/**
+ * List all resource bookings with optional filters
+ */
+export async function listBookings(
+  filters: { assetId?: string; date?: string },
+  db: DrizzleDb
+) {
+  const query = db
+    .select({
+      id: resourceBooking.id,
+      assetId: resourceBooking.assetId,
+      resource: asset.name,
+      user: employee.name,
+      date: sql`to_char(${resourceBooking.startTime} AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')`,
+      startTime: resourceBooking.startTime,
+      endTime: resourceBooking.endTime,
+      status: resourceBooking.status,
+      cancelledReason: resourceBooking.cancelledReason,
+    })
+    .from(resourceBooking)
+    .innerJoin(asset, eq(resourceBooking.assetId, asset.id))
+    .leftJoin(employee, eq(resourceBooking.bookedByUserId, employee.userId))
+
+  const conditions = []
+  if (filters.assetId) {
+    conditions.push(eq(resourceBooking.assetId, filters.assetId))
+  }
+  if (filters.date) {
+    conditions.push(sql`date(${resourceBooking.startTime} AT TIME ZONE 'Asia/Kolkata') = ${filters.date}`)
+  }
+
+  const results = conditions.length > 0 ? await query.where(and(...conditions)) : await query
+
+  return results.map(r => {
+    const startObj = new Date(r.startTime)
+    const endObj = new Date(r.endTime)
+    
+    const formatTime = (d: Date) => {
+      // Shift UTC time to Indian Standard Time (Asia/Kolkata offset +05:30)
+      const offsetMs = 5.5 * 60 * 60 * 1000
+      const localTime = new Date(d.getTime() + offsetMs)
+      let hours = localTime.getUTCHours()
+      const minutes = String(localTime.getUTCMinutes()).padStart(2, '0')
+      const ampm = hours >= 12 ? 'PM' : 'AM'
+      hours = hours % 12
+      hours = hours ? hours : 12
+      return `${hours}:${minutes} ${ampm}`
+    }
+
+    return {
+      id: r.id,
+      resource: r.resource,
+      user: r.user || "System User",
+      date: r.date as string,
+      timeSlot: `${formatTime(startObj)} - ${formatTime(endObj)}`,
+      status: r.status
+    }
+  })
+}
+
+/**
+ * Reschedule booking with overlap check
+ */
+export async function rescheduleBooking(
+  bookingId: string,
+  data: { startTime: string; endTime: string },
+  userId: string,
+  db: DrizzleDb
+) {
+  return await db.transaction(async (tx) => {
+    const bookingArr = await tx
+      .select()
+      .from(resourceBooking)
+      .where(eq(resourceBooking.id, bookingId))
+      .limit(1)
+
+    if (bookingArr.length === 0) {
+      throw new Error("Booking not found")
+    }
+
+    const booking = bookingArr[0]
+    const start = new Date(data.startTime)
+    const end = new Date(data.endTime)
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new Error("Invalid start or end time")
+    }
+    if (start >= end) {
+      throw new Error("Start time must be before end time")
+    }
+
+    if (start.getTime() < Date.now() - 60000) {
+      throw new Error("Cannot book slots in the past")
+    }
+
+    // Check overlap excluding self
+    const existing = await tx
+      .select()
+      .from(resourceBooking)
+      .where(
+        and(
+          eq(resourceBooking.assetId, booking.assetId),
+          ne(resourceBooking.status, "Cancelled"),
+          ne(resourceBooking.id, bookingId)
+        )
+      )
+
+    const hasOverlap = existing.some((b) => {
+      const bStart = new Date(b.startTime)
+      const bEnd = new Date(b.endTime)
+      return start < bEnd && end > bStart
+    })
+
+    if (hasOverlap) {
+      throw new Error("Overlap validation failed: This resource is already booked during the requested timeslot")
+    }
+
+    const [updated] = await tx
+      .update(resourceBooking)
+      .set({
+        startTime: data.startTime,
+        endTime: data.endTime,
+        status: "Upcoming",
+        updatedBy: userId,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(resourceBooking.id, bookingId))
+      .returning()
+
+    return updated
+  })
+}
+
+/**
+ * Cancel a booking slot
+ */
+export async function cancelBooking(
+  bookingId: string,
+  cancelledReason: string | undefined,
+  userId: string,
+  db: DrizzleDb
+) {
+  const [updated] = await db
+    .update(resourceBooking)
+    .set({
+      status: "Cancelled",
+      cancelledReason: cancelledReason || null,
+      updatedBy: userId,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(resourceBooking.id, bookingId))
+    .returning()
+
+  if (!updated) {
+    throw new Error("Booking not found")
+  }
+  return updated
+}
+
+/**
+ * Update Booking status (Ongoing, Completed, etc.)
+ */
+export async function updateBookingStatus(
+  bookingId: string,
+  status: "Upcoming" | "Ongoing" | "Completed",
+  userId: string,
+  db: DrizzleDb
+) {
+  const [updated] = await db
+    .update(resourceBooking)
+    .set({
+      status,
+      updatedBy: userId,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(resourceBooking.id, bookingId))
+    .returning()
+
+  if (!updated) {
+    throw new Error("Booking not found")
+  }
+  return updated
 }
