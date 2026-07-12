@@ -78,14 +78,6 @@ function App() {
   const [showBookModal, setShowBookModal] = useState(false)
   const [showRequestModal, setShowRequestModal] = useState(false)
 
-  // Calculated Stats
-  const totalAssetsCount = assets.length
-  const availableCount = assets.filter(a => a.status === 'Available').length
-  const allocatedCount = assets.filter(a => a.status === 'Allocated').length
-  const inRepairCount = assets.filter(a => a.status === 'In Repair').length
-  const activeBookingsCount = bookings.filter(b => b.status === 'Confirmed').length
-  const pendingTransfersCount = transfers.filter(t => t.status.startsWith('Pending')).length
-  const upcomingReturnsCount = 12 // Simulated metric matching wireframe
 
   // Callback handlers
   const handleRegisterAsset = (assetData: {
@@ -213,13 +205,6 @@ function App() {
         <div className="page-container">
           {currentPath === '/dashboard' && (
             <Dashboard
-              availableCount={availableCount}
-              allocatedCount={allocatedCount}
-              activeBookingsCount={activeBookingsCount}
-              pendingTransfersCount={pendingTransfersCount}
-              upcomingReturnsCount={upcomingReturnsCount}
-              totalAssetsCount={totalAssetsCount}
-              inRepairCount={inRepairCount}
               onTabChange={(tabTitle) => {
                 const target = routes.find(r => r.title === tabTitle)
                 if (target) setCurrentPath(target.path)
