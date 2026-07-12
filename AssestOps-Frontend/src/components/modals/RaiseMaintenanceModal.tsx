@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
-import { X, Wrench, Loader2 } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { X, Wrench, Loader2, Upload, ImageIcon } from "lucide-react"
 import { useAssets } from "../../hooks/useAssets"
 import { useMaintenance } from "../../hooks/useMaintenance"
+import { uploadMaintenancePhoto } from "../../utils/upload"
 
 interface RaiseMaintenanceModalProps {
   isOpen: boolean
@@ -20,7 +21,12 @@ export default function RaiseMaintenanceModal({
   const [assetId, setAssetId] = useState("")
   const [issueDescription, setIssueDescription] = useState("")
   const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Critical">("Medium")
-  const [photoUrl, setPhotoUrl] = useState("")
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -30,22 +36,61 @@ export default function RaiseMaintenanceModal({
 
   if (!isOpen) return null
 
+  const handleFileChange = (file: File | null) => {
+    if (!file) return
+    // Validate it's an image
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please select an image file (JPG, PNG, WEBP, etc.)")
+      return
+    }
+    setUploadError(null)
+    setPhotoFile(file)
+    // Show preview
+    const reader = new FileReader()
+    reader.onload = (e) => setPhotoPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0] ?? null
+    handleFileChange(file)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!assetId || !issueDescription) return
+
+    setUploadError(null)
+    let resolvedPhotoUrl: string | null = null
+
+    // Upload photo first if a file was selected
+    if (photoFile) {
+      try {
+        setUploadProgress(0)
+        resolvedPhotoUrl = await uploadMaintenancePhoto(assetId, photoFile, setUploadProgress)
+      } catch (err: any) {
+        setUploadError(err?.message ?? "Failed to upload photo. Please try again.")
+        setUploadProgress(0)
+        return
+      }
+    }
 
     const success = await raiseRequest({
       assetId,
       issueDescription,
       priority,
-      photoUrl: photoUrl || null,
+      photoUrl: resolvedPhotoUrl,
     })
 
     if (success) {
       setAssetId("")
       setIssueDescription("")
       setPriority("Medium")
-      setPhotoUrl("")
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      setUploadProgress(0)
       onSuccess?.()
       onClose()
     }
@@ -230,26 +275,132 @@ export default function RaiseMaintenanceModal({
             </div>
           </div>
 
-          {/* Photo URL */}
+          {/* Photo Upload */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>
-              Photo URL (Optional)
+              Photo / Attachment (Optional)
             </label>
-            <input
-              type="url"
-              placeholder="e.g. https://images.unsplash.com/..."
+
+            {/* Drag-and-drop zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
               style={{
-                padding: "10px",
-                background: "rgba(0,0,0,0.2)",
-                border: "1px solid var(--border-color)",
-                borderRadius: "6px",
-                color: "white",
-                outline: "none",
-                fontSize: "13px",
+                padding: "20px 16px",
+                border: `2px dashed ${isDragging ? "var(--accent-color)" : photoFile ? "rgba(34,197,94,0.4)" : "var(--border-color)"}`,
+                borderRadius: "8px",
+                background: isDragging
+                  ? "rgba(var(--accent-rgb, 99,102,241),0.06)"
+                  : photoFile
+                  ? "rgba(34,197,94,0.04)"
+                  : "rgba(0,0,0,0.15)",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "8px",
+                textAlign: "center",
               }}
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
+            >
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Preview"
+                  style={{
+                    maxHeight: "120px",
+                    maxWidth: "100%",
+                    borderRadius: "6px",
+                    objectFit: "contain",
+                  }}
+                />
+              ) : (
+                <>
+                  <div style={{ color: isDragging ? "var(--accent-color)" : "var(--text-muted)" }}>
+                    {isDragging ? <Upload size={28} /> : <ImageIcon size={28} />}
+                  </div>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
+                    {isDragging
+                      ? "Drop image here"
+                      : "Click to browse or drag & drop an image"}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", opacity: 0.6, margin: 0 }}>
+                    JPG, PNG, WEBP — max 10 MB
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
+
+            {/* File name + remove */}
+            {photoFile && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "6px 10px",
+                background: "rgba(34,197,94,0.06)",
+                border: "1px solid rgba(34,197,94,0.2)",
+                borderRadius: "6px",
+              }}>
+                <span style={{ fontSize: "12px", color: "#4ade80", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "80%" }}>
+                  {photoFile.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPhotoFile(null)
+                    setPhotoPreview(null)
+                    setUploadProgress(0)
+                    setUploadError(null)
+                    if (fileInputRef.current) fileInputRef.current.value = ""
+                  }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", flexShrink: 0 }}
+                  title="Remove photo"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Upload progress bar */}
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div style={{ width: "100%" }}>
+                <div style={{
+                  height: "4px",
+                  borderRadius: "4px",
+                  background: "rgba(255,255,255,0.08)",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${uploadProgress}%`,
+                    background: "var(--accent-color, #6366f1)",
+                    borderRadius: "4px",
+                    transition: "width 0.3s ease",
+                  }} />
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right" }}>
+                  Uploading... {uploadProgress}%
+                </p>
+              </div>
+            )}
+
+            {/* Upload error */}
+            {uploadError && (
+              <p style={{ fontSize: "12px", color: "#fca5a5", margin: 0 }}>{uploadError}</p>
+            )}
           </div>
 
           {/* Action Buttons */}
