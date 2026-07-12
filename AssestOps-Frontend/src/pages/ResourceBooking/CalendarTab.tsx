@@ -365,8 +365,14 @@ export default function CalendarTab({
                   height: `${heightPos - 4}px`,
                   left: `${leftPercent}%`,
                   width: `calc(${widthPercent}% - 4px)`,
-                  background: b.status === 'Ongoing' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(29, 110, 228, 0.15)',
-                  border: b.status === 'Ongoing' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(29, 110, 228, 0.4)',
+                  background:
+                    b.status === 'Completed' ? 'rgba(16, 185, 129, 0.15)' :
+                    b.status === 'Ongoing' ? 'rgba(168, 85, 247, 0.15)' :
+                    'rgba(29, 110, 228, 0.15)',
+                  border:
+                    b.status === 'Completed' ? '1px solid rgba(16, 185, 129, 0.4)' :
+                    b.status === 'Ongoing' ? '1px solid rgba(168, 85, 247, 0.4)' :
+                    '1px solid rgba(29, 110, 228, 0.4)',
                   borderRadius: 'var(--radius-md)',
                   padding: '12px',
                   boxSizing: 'border-box',
@@ -393,7 +399,10 @@ export default function CalendarTab({
                         <span style={{
                           fontWeight: 700,
                           fontSize: '13px',
-                          color: conflict ? '#fca5a5' : b.status === 'Ongoing' ? '#a7f3d0' : '#93c5fd',
+                          color: conflict ? '#fca5a5' :
+                                 b.status === 'Completed' ? '#a7f3d0' :
+                                 b.status === 'Ongoing' ? '#e9d5ff' :
+                                 '#93c5fd',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap'
@@ -410,10 +419,14 @@ export default function CalendarTab({
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
-                            color: b.status === 'Ongoing' ? '#34d399' : '#60a5fa',
+                            color: b.status === 'Completed' ? '#34d399' :
+                                   b.status === 'Ongoing' ? '#c084fc' :
+                                   '#60a5fa',
                             fontSize: '9px',
                             fontWeight: 700,
-                            background: b.status === 'Ongoing' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(29, 110, 228, 0.2)',
+                            background: b.status === 'Completed' ? 'rgba(16, 185, 129, 0.2)' :
+                                        b.status === 'Ongoing' ? 'rgba(168, 85, 247, 0.2)' :
+                                        'rgba(29, 110, 228, 0.2)',
                             padding: '2px 6px',
                             borderRadius: '4px',
                             textTransform: 'uppercase'
