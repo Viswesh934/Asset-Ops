@@ -224,6 +224,15 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+  background-color: var(--text-primary);
+}
+
 .sidebar-menu {
   flex: 1;
   padding: 24px 16px;

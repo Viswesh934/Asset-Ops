@@ -17,7 +17,7 @@ export default function Sidebar({ unreadCount }: SidebarProps) {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="header-title-container">
-          <div className="header-logo-icon">A</div>
+          <img src="/favicon.png" alt="AssetFlow" className="sidebar-logo"/>
           <span className="header-title" style={{ fontWeight: 800, fontSize: "22px" }}>AssetFlow</span>
         </div>
       </div>
@@ -46,11 +46,6 @@ export default function Sidebar({ unreadCount }: SidebarProps) {
           )
         })}
       </nav>
-      
-      <div className="sidebar-footer">
-        <span>AssetFlow</span>
-        <span>v1.2.0</span>
-      </div>
     </aside>
   )
 }
