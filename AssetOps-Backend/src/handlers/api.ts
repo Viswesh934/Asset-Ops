@@ -16,7 +16,7 @@ import healthRoutes from "../routes/health"
 import assetRoutes from "../routes/assets"
 import auditRoutes from "../routes/audits"
 import { initSendGrid } from "../services/emailService"
-import { userMaster, department, activityLog } from "../db/schema"
+import { userMaster, activityLog } from "../db/schema"
 import { sql, eq } from "drizzle-orm"
 import dashboardRoutes from "../routes/dashboard"
 import allocationRoutes from "../routes/allocations"
@@ -110,12 +110,10 @@ app.after(() => {
   app.register(directoryRoutes, { prefix: "/api" });
   app.register(auditRoutes, { prefix: "/api" });
 
-  // Example of how to protect routes using the authenticate hook:
+  // Protected routes — assetRoutes, auditRoutes, and directoryRoutes already
+  // carry their own per-route auth hooks, so they don't need re-registration here.
   app.register(async function protectedRoutes(fastifyPrivate) {
     fastifyPrivate.addHook("preHandler", fastifyPrivate.authenticate)
-
-    fastifyPrivate.register(assetRoutes)
-    fastifyPrivate.register(auditRoutes)
 
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }
@@ -129,12 +127,6 @@ app.after(() => {
         username: userMaster.username
       }).from(userMaster)
       return users
-    })
-
-    fastifyPrivate.get("/departments", async (request) => {
-      const db = getDrizzleClient(fastifyPrivate)
-      const depts = await db.select().from(department)
-      return depts
     })
 
     fastifyPrivate.get("/activity-log", async (request) => {
