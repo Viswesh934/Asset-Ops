@@ -21,14 +21,11 @@ import { Badge } from "../components/ui/badge"
 export default function Assets() {
   const {
     loading,
-    error,
     assets,
-    categories,
     selectedAssetDetail,
     fetchAssets,
-    fetchCategories,
     fetchAssetDetails,
-    registerAsset,
+    fetchCategories,
   } = useAssets()
 
   const [search, setSearch] = useState("")
@@ -64,13 +61,7 @@ export default function Assets() {
     setDetailTab("allocations")
   }
 
-  const handleRegisterSubmit = async (assetData: any) => {
-    const success = await registerAsset(assetData)
-    if (success) {
-      fetchAssets({ search, category: selectedCategory, status: selectedStatus })
-    }
-    return success
-  }
+
 
   // Calculate statistics for visual cards
   const totalCount = assets.length
@@ -345,10 +336,10 @@ export default function Assets() {
               <div className="space-y-4 min-h-[160px]">
                 {detailTab === "allocations" && (
                   <div className="space-y-3">
-                    {selectedAssetDetail.allocations.length === 0 ? (
+                    {(selectedAssetDetail.allocations || []).length === 0 ? (
                       <p className="text-center text-sm text-slate-500 py-8">No allocation records for this asset.</p>
                     ) : (
-                      selectedAssetDetail.allocations.map((alloc) => (
+                      (selectedAssetDetail.allocations || []).map((alloc) => (
                         <div key={alloc.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl flex items-start justify-between">
                           <div>
                             <p className="text-sm font-semibold text-white">
@@ -375,10 +366,10 @@ export default function Assets() {
 
                 {detailTab === "maintenance" && (
                   <div className="space-y-3">
-                    {selectedAssetDetail.maintenance.length === 0 ? (
+                    {(selectedAssetDetail.maintenance || []).length === 0 ? (
                       <p className="text-center text-sm text-slate-500 py-8">No maintenance tickets logged.</p>
                     ) : (
-                      selectedAssetDetail.maintenance.map((ticket) => (
+                      (selectedAssetDetail.maintenance || []).map((ticket) => (
                         <div key={ticket.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold text-white">{ticket.issueDescription}</span>
@@ -412,10 +403,7 @@ export default function Assets() {
       <RegisterAssetModal
         isOpen={isRegisterOpen}
         onClose={() => setIsRegisterOpen(false)}
-        categories={categories}
-        onRegister={handleRegisterSubmit}
-        loading={loading}
-        error={error}
+        onSuccess={() => fetchAssets({ search, category: selectedCategory, status: selectedStatus })}
       />
     </div>
   )

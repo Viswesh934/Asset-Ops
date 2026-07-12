@@ -6,11 +6,11 @@ export interface Asset {
   categoryId: string
   status: 'Available' | 'Allocated' | 'Reserved' | 'Under Maintenance' | 'Lost' | 'Retired' | 'Disposed'
   condition: 'New' | 'Good' | 'Fair' | 'Poor' | 'Damaged'
-  serialNumber?: string
-  acquisitionDate?: string
-  acquisitionCost?: number
-  location?: string
-  departmentId?: string
+  serialNumber?: string | null
+  acquisitionDate?: string | null
+  acquisitionCost?: number | string | null
+  location?: string | null
+  departmentId?: string | null
   isBookable: boolean
   assignedTo?: string
 }
@@ -31,10 +31,24 @@ export interface AssetAllocation {
 export interface MaintenanceRequest {
   id: string
   assetId: string
+  assetName?: string
+  assetTag?: string
+  serialNumber?: string | null
+  location?: string | null
+  raisedByUserId: string
+  raisedByName: string | null
   issueDescription: string
   priority: 'Low' | 'Medium' | 'High' | 'Critical'
+  photoUrl?: string | null
   status: 'Pending' | 'Approved' | 'Rejected' | 'Technician Assigned' | 'In Progress' | 'Resolved'
+  approvedByUserId?: string | null
+  approvedAt?: string | null
+  rejectionReason?: string | null
+  technicianName?: string | null
+  technicianAssignedAt?: string | null
+  resolvedAt?: string | null
   resolutionNotes: string | null
+  createdAt: string
 }
 
 export interface AssetAttachment {
@@ -44,9 +58,12 @@ export interface AssetAttachment {
 }
 
 export interface AssetDetail extends Asset {
-  attachments: AssetAttachment[]
-  allocations: AssetAllocation[]
-  maintenance: MaintenanceRequest[]
+  attachments?: AssetAttachment[]
+  allocations?: AssetAllocation[]
+  maintenance?: MaintenanceRequest[]
+  qrCode?: string | null
+  activeAllocation?: any
+  history?: any[]
 }
 
 export interface AuditCycle {
@@ -76,16 +93,7 @@ export interface AuditItem {
   location?: string
 }
 
-export interface AssetDetail extends Asset {
-  qrCode?: string | null
-  acquisitionDate?: string | null
-  acquisitionCost?: string | null
-  location?: string | null
-  departmentId?: string | null
-  isBookable: boolean
-  activeAllocation?: any
-  history?: any[]
-}
+
 
 export interface Booking {
   id: string

@@ -4,6 +4,7 @@ import Header from './Header'
 import RegisterAssetModal from './modals/RegisterAssetModal'
 import BookResourceModal from './modals/BookResourceModal'
 import TransferRequestModal from './modals/TransferRequestModal'
+import RaiseMaintenanceModal from './modals/RaiseMaintenanceModal'
 import { useAppContext } from '../contexts/AppContext'
 import { routes } from '../routes'
 
@@ -43,6 +44,12 @@ export default function AppLayout() {
       <TransferRequestModal
         isOpen={state.showRequestModal}
         onClose={() => state.setShowRequestModal(false)}
+        onSuccess={state.triggerRefetch}
+      />
+
+      <RaiseMaintenanceModal
+        isOpen={state.showMaintenanceModal}
+        onClose={() => state.setShowMaintenanceModal(false)}
         onSuccess={state.triggerRefetch}
       />
     </div>
