@@ -591,6 +591,8 @@ export async function updateBookingStatus(
     throw new Error("Booking not found")
   }
   return updated
+}
+
 function extractStoragePath(publicUrl: string): string | null {
   const marker = "/storage/v1/object/public/"
   const idx = publicUrl.indexOf(marker)
@@ -603,3 +605,4 @@ function extractStoragePath(publicUrl: string): string | null {
   const bucketAndPath = rest.slice(slashIdx + 1)
   return decodeURIComponent(bucketAndPath)
 }
+
