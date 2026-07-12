@@ -1,4 +1,4 @@
-import { X, Calendar, User, Clock, CheckCircle, AlertTriangle, Bell, Play } from 'lucide-react'
+import { X, Calendar, User, Clock, CheckCircle, Bell, Play } from 'lucide-react'
 import type { Booking } from '../../types'
 import { useBookingStore } from '../../store/bookingStore'
 
