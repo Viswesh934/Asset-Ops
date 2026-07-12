@@ -11,7 +11,6 @@ import authenticate from "../plugins/auth"
 import dbPlugin from "../plugins/dbErrorHandler"
 import { getDrizzleClient } from "../db/connection"
 import supabasePlugin from "../plugins/supabase"
-
 import authRoutes from "../routes/auth"
 import healthRoutes from "../routes/health"
 import assetRoutes from "../routes/assets"
@@ -21,7 +20,6 @@ import getDepartmentsRoutes from "../routes/organization-setup/getDepartments"
 import getEmployeesRoutes from "../routes/organization-setup/getEmployees"
 import getCategoriesRoutes from "../routes/organization-setup/getCategories"
 import addItemRoutes from "../routes/organization-setup/addItem"
-
 import { initSendGrid } from "../services/emailService"
 import { userMaster, department, activityLog } from "../db/schema"
 import { sql, eq } from "drizzle-orm"
@@ -111,32 +109,29 @@ app.after(() => {
   app.register(async function protectedRoutes(fastifyPrivate) {
     fastifyPrivate.addHook("preHandler", fastifyPrivate.authenticate)
 
+    fastifyPrivate.register(assetRoutes)
+    fastifyPrivate.register(auditRoutes)
+    fastifyPrivate.register(dashboardRoutes)
     fastifyPrivate.register(getDepartmentsRoutes)
     fastifyPrivate.register(getEmployeesRoutes)
     fastifyPrivate.register(getCategoriesRoutes)
     fastifyPrivate.register(addItemRoutes)
 
-    fastifyPrivate.register(assetRoutes)
-    fastifyPrivate.register(auditRoutes)
-    fastifyPrivate.register(dashboardRoutes)
-
     fastifyPrivate.get("/me", async (request) => {
       return { user: request.user }
     })
 
-    fastifyPrivate.get("/users", async () => {
+    fastifyPrivate.get("/users", async (request) => {
       const db = getDrizzleClient(fastifyPrivate)
-      const users = await db
-        .select({
-          id: userMaster.id,
-          login: userMaster.login,
-          username: userMaster.username,
-        })
-        .from(userMaster)
+      const users = await db.select({
+        id: userMaster.id,
+        login: userMaster.login,
+        username: userMaster.username
+      }).from(userMaster)
       return users
     })
 
-    fastifyPrivate.get("/activity-log", async () => {
+    fastifyPrivate.get("/activity-log", async (request) => {
       const db = getDrizzleClient(fastifyPrivate)
       const logs = await db
         .select({
