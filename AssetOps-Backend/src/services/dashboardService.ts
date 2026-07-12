@@ -8,6 +8,8 @@ import {
   transferRequest,
   employee,
   department,
+  auditCycle,
+  auditItem,
 } from "../db/schema"
 
 export interface KPICards {
@@ -36,7 +38,7 @@ export interface ReturnDetail {
 
 export interface ActivityItem {
   id: string
-  type: 'allocation' | 'booking' | 'maintenance'
+  type: 'allocation' | 'booking' | 'maintenance' | 'audit'
   title: string
   description: string
   timestamp: string
@@ -766,6 +768,53 @@ async function getRecentActivities(db: DrizzleDb): Promise<ActivityItem[]> {
     })
   }
 
+  // 4. Get audit cycles
+  const cycles = await db
+    .select({
+      id: auditCycle.id,
+      name: auditCycle.name,
+      status: auditCycle.status,
+      createdAt: auditCycle.createdAt,
+    })
+    .from(auditCycle)
+    .orderBy(sql`${auditCycle.createdAt} DESC`)
+    .limit(3)
+
+  for (const cycle of cycles) {
+    activities.push({
+      id: cycle.id,
+      type: 'audit',
+      title: cycle.name,
+      description: `audit cycle ${cycle.status.toLowerCase()}`,
+      timestamp: cycle.createdAt,
+    })
+  }
+
+  // 5. Get flagged audit items
+  const flagged = await db
+    .select({
+      id: auditItem.id,
+      result: auditItem.result,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      createdAt: auditItem.createdAt,
+    })
+    .from(auditItem)
+    .innerJoin(asset, eq(auditItem.assetId, asset.id))
+    .where(or(eq(auditItem.result, "Missing"), eq(auditItem.result, "Damaged")))
+    .orderBy(sql`${auditItem.createdAt} DESC`)
+    .limit(3)
+
+  for (const item of flagged) {
+    activities.push({
+      id: item.id,
+      type: 'audit',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `flagged as ${item.result.toLowerCase()} during audit`,
+      timestamp: item.createdAt,
+    })
+  }
+
   return activities
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5)
@@ -857,6 +906,58 @@ async function getDeptHeadRecentActivities(deptId: string, db: DrizzleDb): Promi
     })
   }
 
+  // Audit cycles (org-wide, limited)
+  const cycles = await db
+    .select({
+      id: auditCycle.id,
+      name: auditCycle.name,
+      status: auditCycle.status,
+      createdAt: auditCycle.createdAt,
+    })
+    .from(auditCycle)
+    .orderBy(sql`${auditCycle.createdAt} DESC`)
+    .limit(3)
+
+  for (const cycle of cycles) {
+    activities.push({
+      id: cycle.id,
+      type: 'audit',
+      title: cycle.name,
+      description: `audit cycle ${cycle.status.toLowerCase()}`,
+      timestamp: cycle.createdAt,
+    })
+  }
+
+  // Flagged items in this department
+  const flagged = await db
+    .select({
+      id: auditItem.id,
+      result: auditItem.result,
+      assetName: asset.name,
+      assetTag: asset.assetTag,
+      createdAt: auditItem.createdAt,
+    })
+    .from(auditItem)
+    .innerJoin(asset, eq(auditItem.assetId, asset.id))
+    .where(
+      and(
+        or(eq(auditItem.result, "Missing"), eq(auditItem.result, "Damaged")),
+        eq(asset.departmentId, deptId)
+      )
+    )
+    .orderBy(sql`${auditItem.createdAt} DESC`)
+    .limit(3)
+
+  for (const item of flagged) {
+    activities.push({
+      id: item.id,
+      type: 'audit',
+      title: `${item.assetName} (${item.assetTag})`,
+      description: `flagged as ${item.result.toLowerCase()} during audit`,
+      timestamp: item.createdAt,
+    })
+  }
+
   return activities
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5)
@@ -937,6 +1038,28 @@ async function getEmployeeRecentActivities(userId: string, employeeId: string, d
       title: `${item.assetName} (${item.assetTag})`,
       description: `maintenance ticket ${item.status.toLowerCase()} (${item.issue})`,
       timestamp: item.createdAt,
+    })
+  }
+
+  // Audit cycles
+  const cycles = await db
+    .select({
+      id: auditCycle.id,
+      name: auditCycle.name,
+      status: auditCycle.status,
+      createdAt: auditCycle.createdAt,
+    })
+    .from(auditCycle)
+    .orderBy(sql`${auditCycle.createdAt} DESC`)
+    .limit(3)
+
+  for (const cycle of cycles) {
+    activities.push({
+      id: cycle.id,
+      type: 'audit',
+      title: cycle.name,
+      description: `audit cycle ${cycle.status.toLowerCase()}`,
+      timestamp: cycle.createdAt,
     })
   }
 

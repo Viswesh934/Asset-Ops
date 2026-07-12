@@ -55,15 +55,9 @@ export interface AssetAttachment {
   id: string
   assetId: string
   fileUrl: string
-}
-
-export interface AssetDetail extends Asset {
-  attachments?: AssetAttachment[]
-  allocations?: AssetAllocation[]
-  maintenance?: MaintenanceRequest[]
-  qrCode?: string | null
-  activeAllocation?: any
-  history?: any[]
+  fileName: string | null
+  fileType: string | null
+  signedUrl?: string | null
 }
 
 export interface AuditCycle {
@@ -93,7 +87,18 @@ export interface AuditItem {
   location?: string
 }
 
-
+export interface AssetDetail extends Asset {
+  qrCode?: string | null
+  acquisitionDate?: string | null
+  acquisitionCost?: string | null
+  location?: string | null
+  departmentId?: string | null
+  isBookable: boolean
+  activeAllocation?: string
+  history?: AssetAllocation[]
+  attachments?: AssetAttachment[]
+  maintenanceHistory?: MaintenanceRequest[]
+}
 
 export interface Booking {
   id: string
