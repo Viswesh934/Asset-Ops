@@ -1,90 +1,46 @@
 import { FastifyInstance } from "fastify"
 import { getDrizzleClient } from "../db/connection"
-import {
-  generateUploadUrl,
-  confirmUpload,
-  listAttachments,
-  deleteAttachment,
-} from "../services/attachmentService"
+import { uploadAndConfirm, listAttachments, deleteAttachment } from "../services/attachmentService"
 
 export default async function attachmentRoutes(fastify: FastifyInstance) {
-  // 1. Get presigned upload URL — frontend PUTs file directly to Supabase
-  fastify.post(
-    "/assets/:assetId/attachments/upload-url",
-    {
-      preHandler: [fastify.authenticate],
-      schema: {
-        body: {
-          type: "object",
-          required: ["fileName", "contentType"],
-          properties: {
-            fileName: { type: "string" },
-            contentType: { type: "string" },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      try {
-        const { assetId } = request.params as { assetId: string }
-        const { fileName, contentType } = request.body as {
-          fileName: string
-          contentType: string
-        }
-        const db = getDrizzleClient(fastify)
-
-        const result = await generateUploadUrl(
-          assetId,
-          fileName,
-          contentType,
-          fastify.supabase,
-          db
-        )
-
-        return reply.code(200).send(result)
-      } catch (error: any) {
-        request.log.error(error)
-        if (error.message === "Asset not found") {
-          return reply.code(404).send({ error: error.message })
-        }
-        return reply.code(500).send({ error: error.message || "Failed to generate upload URL" })
-      }
-    }
-  )
-
-  // 2. Confirm upload — records metadata in DB after frontend uploaded via signed URL
+  // Upload file directly — frontend POSTs multipart form data
   fastify.post(
     "/assets/:assetId/attachments",
-    {
-      preHandler: [fastify.authenticate],
-      schema: {
-        body: {
-          type: "object",
-          required: ["filePath"],
-          properties: {
-            filePath: { type: "string" },
-            fileType: { type: "string", nullable: true },
-            label: { type: "string", nullable: true },
-          },
-        },
-      },
-    },
     async (request, reply) => {
       try {
-        const { assetId } = request.params as { assetId: string }
-        const { filePath, fileType, label } = request.body as {
-          filePath: string
-          fileType?: string
-          label?: string
+        const parts = request.parts()
+        const fields: Record<string, string> = {}
+        let fileBuffer: Buffer | null = null
+        let fileName = ""
+        let fileType = ""
+
+        for await (const part of parts) {
+          if (part.type === "file") {
+            fileName = part.filename
+            fileType = part.mimetype
+            const chunks: Buffer[] = []
+            for await (const chunk of part.file) {
+              chunks.push(chunk)
+            }
+            fileBuffer = Buffer.concat(chunks)
+          } else {
+            fields[part.fieldname] = part.value as string
+          }
         }
+
+        if (!fileBuffer) {
+          return reply.code(400).send({ error: "No file uploaded" })
+        }
+
+        const { assetId } = request.params as { assetId: string }
         const userId = request.user.userId
         const db = getDrizzleClient(fastify)
 
-        const record = await confirmUpload(
+        const record = await uploadAndConfirm(
           assetId,
-          filePath,
-          fileType || null,
-          label || null,
+          fileName,
+          fileType,
+          fileBuffer,
           userId,
           fastify.supabase,
           db
@@ -93,17 +49,17 @@ export default async function attachmentRoutes(fastify: FastifyInstance) {
         return reply.code(201).send(record)
       } catch (error: any) {
         request.log.error(error)
-        return reply.code(500).send({ error: error.message || "Failed to confirm upload" })
+        if (error.message === "Asset not found") {
+          return reply.code(404).send({ error: error.message })
+        }
+        return reply.code(500).send({ error: error.message || "Failed to upload attachment" })
       }
     }
   )
 
-  // 3. List attachments for an asset
+  // List attachments for an asset
   fastify.get(
     "/assets/:assetId/attachments",
-    {
-      preHandler: [fastify.authenticate],
-    },
     async (request, reply) => {
       try {
         const { assetId } = request.params as { assetId: string }
@@ -123,12 +79,9 @@ export default async function attachmentRoutes(fastify: FastifyInstance) {
     }
   )
 
-  // 4. Delete an attachment
+  // Delete an attachment
   fastify.delete(
     "/attachments/:attachmentId",
-    {
-      preHandler: [fastify.authenticate],
-    },
     async (request, reply) => {
       try {
         const { attachmentId } = request.params as { attachmentId: string }

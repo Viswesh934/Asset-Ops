@@ -165,3 +165,16 @@ export interface OrgEmployee {
   userId?: string
 }
 
+export interface ActivityLogItem {
+  id: string
+  actorUserId: string
+  action: string
+  entityType: string
+  entityId?: string | null
+  details?: string | null
+  createdAt: string
+  username?: string | null
+  actorName?: string | null
+}
+
+

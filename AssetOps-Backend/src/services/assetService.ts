@@ -309,7 +309,7 @@ export async function getAssetDetail(
         const storagePath = extractStoragePath(row.fileUrl)
         if (storagePath) {
           const { data, error } = await supabase.storage
-            .from("asset-attachments")
+            .from("Asset-Ops")
             .createSignedUrl(storagePath, 3600)
           if (!error) {
             signedUrl = data.signedUrl

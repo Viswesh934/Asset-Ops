@@ -3,21 +3,21 @@ import { eq, and, sql } from "drizzle-orm"
 import { DrizzleDb } from "../db/connection"
 import { assetAttachment, asset } from "../db/schema"
 
-const BUCKET = "asset-attachments"
+const BUCKET = "Asset-Ops"
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/_{2,}/g, "_")
 }
 
 /**
- * Generate a presigned upload URL for the frontend to upload directly to Supabase.
- * Returns { uploadUrl, filePath, token } — the frontend PUTs the file to uploadUrl,
- * then calls confirmUpload to finalize.
+ * Upload a file buffer directly to Supabase storage, then record in DB.
  */
-export async function generateUploadUrl(
+export async function uploadAndConfirm(
   assetId: string,
   fileName: string,
-  contentType: string,
+  fileType: string,
+  fileBuffer: Buffer,
+  userId: string,
   supabase: SupabaseClient,
   db: DrizzleDb
 ) {
@@ -35,33 +35,17 @@ export async function generateUploadUrl(
   const timestamp = Date.now()
   const filePath = `${assetId}/${timestamp}_${safeName}`
 
-  const { data, error } = await supabase.storage
+  const { error: uploadError } = await supabase.storage
     .from(BUCKET)
-    .createSignedUploadUrl(filePath)
+    .upload(filePath, fileBuffer, {
+      contentType: fileType,
+      upsert: false,
+    })
 
-  if (error) {
-    throw new Error(`Failed to create upload URL: ${error.message}`)
+  if (uploadError) {
+    throw new Error(`Failed to upload file: ${uploadError.message}`)
   }
 
-  return {
-    uploadUrl: data.signedUrl,
-    filePath: data.path,
-    token: data.token,
-  }
-}
-
-/**
- * Record an attachment in the DB after the frontend has uploaded via signed URL.
- */
-export async function confirmUpload(
-  assetId: string,
-  filePath: string,
-  fileType: string | null,
-  label: string | null,
-  userId: string,
-  supabase: SupabaseClient,
-  db: DrizzleDb
-) {
   const publicUrl = supabase.storage
     .from(BUCKET)
     .getPublicUrl(filePath).data.publicUrl
@@ -71,10 +55,10 @@ export async function confirmUpload(
     .values({
       assetId,
       fileUrl: publicUrl,
-      fileType: fileType || "photo",
-      label: label || null,
-      createdBy: userId,
-      updatedBy: userId,
+      fileName,
+      fileType,
+      createdBy: null,
+      updatedBy: null,
     })
     .returning()
 
