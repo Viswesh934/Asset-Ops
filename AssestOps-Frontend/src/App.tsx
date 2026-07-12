@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import RegisterAssetModal from './components/modals/RegisterAssetModal'
@@ -13,8 +13,9 @@ import Maintenance from './pages/Maintenance'
 import Audit from './pages/Audit'
 import Reports from './pages/Reports'
 import Notifications from './pages/Notifications'
-import type { Asset, Booking, MaintenanceTicket, TransferRequest, SystemNotification } from './types'
+import type { Booking, MaintenanceTicket, TransferRequest, SystemNotification } from './types'
 import { routes } from "./routes"
+import { useAssets } from "./hooks/useAssets"
 
 import Login from "./pages/Login"
 
@@ -22,6 +23,23 @@ function App() {
   // Authentication State
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"))
   const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem("userEmail"))
+
+  const {
+    assets,
+    categories,
+    loading: assetLoading,
+    error: assetError,
+    fetchAssets,
+    fetchCategories,
+    registerAsset,
+  } = useAssets()
+
+  useEffect(() => {
+    if (token) {
+      fetchAssets()
+      fetchCategories()
+    }
+  }, [token, fetchAssets, fetchCategories])
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -33,18 +51,6 @@ function App() {
   // Navigation State
   const [currentPath, setCurrentPath] = useState<string>("/dashboard")
   const activeRoute = routes.find(r => r.path === currentPath) || routes[0]
-
-  // Interactive Data States
-  const [assets, setAssets] = useState<Asset[]>([
-    { id: 'AF-0114', name: 'Laptop MacBook Pro 16"', category: 'Hardware', status: 'Allocated', assignedTo: 'Priya Shah', serialNo: 'C02DX123MD6R' },
-    { id: 'AF-0062', name: 'Epson Projector X41', category: 'Hardware', status: 'Available', assignedTo: '', serialNo: 'EP-987216-A' },
-    { id: 'AF-0250', name: 'Adobe Creative Cloud Suite', category: 'Software', status: 'Allocated', assignedTo: 'John Doe', serialNo: 'LIC-AD-CS99' },
-    { id: 'AF-0312', name: 'Dell UltraSharp 27" 4K Monitor', category: 'Hardware', status: 'Allocated', assignedTo: 'Sarah Connor', serialNo: 'CN-012X45-9' },
-    { id: 'AF-0089', name: 'Ergonomic Office Chair', category: 'Furniture', status: 'In Repair', assignedTo: '', serialNo: 'FUR-CH-0089' },
-    { id: 'AF-0402', name: 'Slack Enterprise Plan License', category: 'Software', status: 'Available', assignedTo: '', serialNo: 'LIC-SL-ENT0' },
-    { id: 'AF-0199', name: 'Jabra Evolve 75 Headset', category: 'Hardware', status: 'Available', assignedTo: '', serialNo: 'JB-772186-K' },
-    { id: 'AF-0220', name: 'iPad Pro 12.9"', category: 'Hardware', status: 'Allocated', assignedTo: 'Mark Zuckerberg', serialNo: 'IPAD-PRO-981' }
-  ])
 
   const [bookings, setBookings] = useState<Booking[]>([
     { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Confirmed' },
@@ -80,31 +86,6 @@ function App() {
 
 
   // Callback handlers
-  const handleRegisterAsset = (assetData: {
-    name: string
-    category: 'Hardware' | 'Software' | 'Facilities' | 'Furniture'
-    serialNo: string
-    assignedTo: string
-  }) => {
-    const idNum = assets.length + 100
-    const assetId = `AF-0${idNum}`
-    const status: 'Allocated' | 'Available' = assetData.assignedTo ? 'Allocated' : 'Available'
-    
-    const created: Asset = {
-      id: assetId,
-      name: assetData.name,
-      category: assetData.category,
-      status: status,
-      assignedTo: assetData.assignedTo,
-      serialNo: assetData.serialNo
-    }
-
-    setAssets([created, ...assets])
-    setShowRegisterModal(false)
-
-    addNotification('success', 'Asset Registered', `New asset ${created.name} (${created.id}) successfully added.`)
-  }
-
   const handleBookResource = (bookingData: {
     resource: string
     user: string
@@ -217,12 +198,7 @@ function App() {
 
           {currentPath === '/org-setup' && <OrgSetup />}
 
-          {currentPath === '/assets' && (
-            <Assets
-              assets={assets}
-              onOpenRegister={() => setShowRegisterModal(true)}
-            />
-          )}
+          {currentPath === '/assets' && <Assets />}
 
           {currentPath === '/allocation-transfer' && (
             <AllocationTransfer
@@ -262,7 +238,10 @@ function App() {
       <RegisterAssetModal
         isOpen={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}
-        onRegister={handleRegisterAsset}
+        categories={categories}
+        onRegister={registerAsset}
+        loading={assetLoading}
+        error={assetError}
       />
 
       <BookResourceModal
