@@ -17,6 +17,7 @@ import assetRoutes from "../routes/assets";
 import allocationRoutes from "../routes/allocations";
 import transferRoutes from "../routes/transfers";
 import directoryRoutes from "../routes/directories";
+import auditRoutes from "../routes/audit";
 
 export const app = fastify({
   logger: createAppLoggerConfig(),
@@ -108,6 +109,7 @@ app.after(() => {
   app.register(allocationRoutes, { prefix: "/api" });
   app.register(transferRoutes, { prefix: "/api" });
   app.register(directoryRoutes, { prefix: "/api" });
+  app.register(auditRoutes, { prefix: "/api" });
 
   // Example of how to protect routes using the authenticate hook:
   app.register(async function protectedRoutes(fastifyPrivate) {
