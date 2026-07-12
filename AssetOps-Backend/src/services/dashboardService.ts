@@ -18,6 +18,8 @@ export interface KPICards {
   pendingTransfers: number
   upcomingReturns: number
   overdueReturns: number
+  totalAssets: number
+  inRepair: number
 }
 
 export interface ReturnDetail {
@@ -118,6 +120,15 @@ async function getAdminSnapshot(db: DrizzleDb): Promise<DashboardData> {
       )
     )
 
+  const [inRepairCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
+    .where(eq(asset.status, "Under Maintenance"))
+
+  const [totalCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
+
   // B. Overdue Returns List
   const overdueList = await db
     .select({
@@ -209,6 +220,8 @@ async function getAdminSnapshot(db: DrizzleDb): Promise<DashboardData> {
       pendingTransfers: transferCount?.count || 0,
       upcomingReturns: upcomingCount?.count || 0,
       overdueReturns: overdueCount?.count || 0,
+      totalAssets: totalCount?.count || 0,
+      inRepair: inRepairCount?.count || 0,
     },
     overdueReturnsList,
     upcomingReturnsList,
@@ -320,6 +333,16 @@ async function getDepartmentHeadSnapshot(deptId: string, deptName: string | null
       )
     )
 
+  const [repairCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
+    .where(and(eq(asset.status, "Under Maintenance"), eq(asset.departmentId, deptId)))
+
+  const [totalCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
+    .where(eq(asset.departmentId, deptId))
+
   const overdueList = await db
     .select({
       id: assetAllocation.id,
@@ -418,6 +441,8 @@ async function getDepartmentHeadSnapshot(deptId: string, deptName: string | null
       pendingTransfers: transferCount?.count || 0,
       upcomingReturns: upcomingReturnsList.length,
       overdueReturns: overdueReturnsList.length,
+      totalAssets: totalCount?.count || 0,
+      inRepair: repairCount?.count || 0,
     },
     overdueReturnsList,
     upcomingReturnsList,
@@ -498,6 +523,15 @@ async function getEmployeeSnapshot(userId: string, emp: any, db: DrizzleDb): Pro
         eq(transferRequest.status, "Requested")
       )
     )
+
+  const [repairCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
+    .where(eq(asset.status, "Under Maintenance"))
+
+  const [totalCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(asset)
 
   const overdueList = await db
     .select({
@@ -582,6 +616,8 @@ async function getEmployeeSnapshot(userId: string, emp: any, db: DrizzleDb): Pro
       pendingTransfers: transferCount?.count || 0,
       upcomingReturns: upcomingReturnsList.length,
       overdueReturns: overdueReturnsList.length,
+      totalAssets: totalCount?.count || 0,
+      inRepair: repairCount?.count || 0,
     },
     overdueReturnsList,
     upcomingReturnsList,
