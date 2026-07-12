@@ -26,6 +26,7 @@ export default function Assets() {
   const {
     loading,
     assets,
+    categories,
     selectedAssetDetail,
     fetchAssets,
     fetchAssetDetails,
@@ -180,9 +181,8 @@ export default function Assets() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Category Filter buttons */}
           <div className="flex bg-white/[0.03] border border-white/[0.08] p-1 rounded-xl">
-            {["All", "Electronics", "Furniture", "Vehicles"].map((cat) => (
+            {["All", ...categories.map((c) => c.name)].map((cat) => (
               <button
                 key={cat}
                 type="button"

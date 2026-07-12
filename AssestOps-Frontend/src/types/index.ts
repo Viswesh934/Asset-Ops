@@ -152,6 +152,7 @@ export interface OrgCategory {
   type: 'Hardware' | 'Software' | 'Facilities' | 'Furniture'
   description: string
   status: 'Active' | 'Inactive'
+  customFields?: string
 }
 
 export interface OrgEmployee {

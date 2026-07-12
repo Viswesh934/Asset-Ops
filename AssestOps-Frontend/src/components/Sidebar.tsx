@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { routes } from "../routes"
+import { useAppContext } from "../contexts/AppContext"
 
 interface SidebarProps {
   unreadCount: number
@@ -7,6 +8,10 @@ interface SidebarProps {
 
 export default function Sidebar({ unreadCount }: SidebarProps) {
   const location = useLocation()
+  const { userRoles } = useAppContext()
+  const isAdmin = userRoles.includes("Admin")
+
+  const visibleRoutes = routes.filter(item => item.path !== "/org-setup" || isAdmin)
 
   return (
     <aside className="sidebar">
@@ -18,7 +23,7 @@ export default function Sidebar({ unreadCount }: SidebarProps) {
       </div>
       
       <nav className="sidebar-menu">
-        {routes.map(item => {
+        {visibleRoutes.map(item => {
           const Icon = item.icon
           const isActive = location.pathname === item.path
           const isNotification = item.path === "/notifications"

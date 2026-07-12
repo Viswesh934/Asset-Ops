@@ -203,7 +203,7 @@ export async function listAssets(
     conditions.push(eq(assetCategory.name, filters.category))
   }
 
-  if (filters.status) {
+  if (filters.status && filters.status !== "All") {
     conditions.push(eq(asset.status, filters.status as any))
   }
 

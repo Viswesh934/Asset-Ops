@@ -13,7 +13,7 @@ interface OrgState {
   fetchAll: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
   addDepartment: (name: string, headUserId?: string | null, parentDepartmentId?: string | null) => Promise<void>
-  addCategory: (name: string, type: 'Hardware' | 'Software' | 'Facilities' | 'Furniture', description: string) => Promise<void>
+  addCategory: (name: string, type: 'Hardware' | 'Software' | 'Facilities' | 'Furniture', description: string, customFields?: string) => Promise<void>
   addEmployee: (name: string, email: string, departmentId?: string | null) => Promise<void>
 }
 
@@ -133,6 +133,7 @@ export const useOrgStore = create<OrgState>((set, get) => ({
           type: type as any,
           description: c.description || '',
           status: c.status,
+          customFields: c.customFields,
         }
       })
 
@@ -186,7 +187,7 @@ export const useOrgStore = create<OrgState>((set, get) => ({
     }
   },
 
-  addCategory: async (name, type, description) => {
+  addCategory: async (name, type, description, customFields) => {
     const token = get().token
     if (!token) throw new Error('Unauthenticated')
 
@@ -202,7 +203,7 @@ export const useOrgStore = create<OrgState>((set, get) => ({
           type: 'category',
           name,
           description,
-          customFields: JSON.stringify({ type }),
+          customFields: customFields || JSON.stringify({ type }),
         }),
       })
 

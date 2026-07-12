@@ -7,9 +7,9 @@ function getBookingStartEndDates(dateStr: string, timeSlotStr: string) {
   try {
     const [startStr] = timeSlotStr.split("-").map(s => s.trim())
     const [time, modifier] = startStr.split(" ")
-    let [hoursStr, minutesStr] = time.split(":")
+    const [hoursStr, minutesStr] = time.split(":")
     let hours = parseInt(hoursStr, 10)
-    let minutes = parseInt(minutesStr, 10) || 0
+    const minutes = parseInt(minutesStr, 10) || 0
     if (modifier === "PM" && hours < 12) {
       hours += 12
     }
@@ -18,7 +18,7 @@ function getBookingStartEndDates(dateStr: string, timeSlotStr: string) {
     }
     const [year, month, day] = dateStr.split('-').map(Number)
     return new Date(year, month - 1, day, hours, minutes)
-  } catch (e) {
+  } catch {
     return null
   }
 }
@@ -170,7 +170,6 @@ export function useAppState() {
     })
   }, [addNotification])
 
-  const unreadNotificationsCount = notifications.filter(n => !n.read).length
 
   return {
     token,
@@ -196,7 +195,6 @@ export function useAppState() {
     handleBookResource,
     markAllNotificationsRead,
     resolveMaintenance,
-    unreadNotificationsCount,
     userRoles,
   }
 }

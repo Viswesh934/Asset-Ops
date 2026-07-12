@@ -23,6 +23,8 @@ export default function AddRecordTab({ onSuccess }: AddRecordTabProps) {
     name: '',
     type: 'Hardware' as 'Hardware' | 'Software' | 'Facilities' | 'Furniture',
     description: '',
+    warrantyPeriod: '',
+    licenseType: '',
   })
   const [empForm, setEmpForm] = useState({ name: '', email: '', departmentId: '' })
 
@@ -40,8 +42,14 @@ export default function AddRecordTab({ onSuccess }: AddRecordTabProps) {
         onSuccess('Departments')
       } else if (addType === 'Category') {
         if (!catForm.name) return
-        await addCategory(catForm.name, catForm.type, catForm.description)
-        setCatForm({ name: '', type: 'Hardware', description: '' })
+        const customFieldsObj: Record<string, any> = { type: catForm.type }
+        if (catForm.type === 'Hardware') {
+          if (catForm.warrantyPeriod) customFieldsObj.warrantyPeriod = catForm.warrantyPeriod
+        } else if (catForm.type === 'Software') {
+          if (catForm.licenseType) customFieldsObj.licenseType = catForm.licenseType
+        }
+        await addCategory(catForm.name, catForm.type, catForm.description, JSON.stringify(customFieldsObj))
+        setCatForm({ name: '', type: 'Hardware', description: '', warrantyPeriod: '', licenseType: '' })
         onSuccess('Categories')
       } else if (addType === 'Employee') {
         if (!empForm.name || !empForm.email) return
@@ -159,6 +167,36 @@ export default function AddRecordTab({ onSuccess }: AddRecordTabProps) {
                 onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
               />
             </div>
+
+            {catForm.type === 'Hardware' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  Warranty Period (months) - Optional
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 24"
+                  style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white', outline: 'none' }}
+                  value={catForm.warrantyPeriod}
+                  onChange={(e) => setCatForm({ ...catForm, warrantyPeriod: e.target.value })}
+                />
+              </div>
+            )}
+
+            {catForm.type === 'Software' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                  License Type - Optional
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. SaaS Subscription / Perpetual"
+                  style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white', outline: 'none' }}
+                  value={catForm.licenseType}
+                  onChange={(e) => setCatForm({ ...catForm, licenseType: e.target.value })}
+                />
+              </div>
+            )}
           </>
         )}
 

@@ -15,7 +15,8 @@ import Login from './pages/Login'
 
 
 function AuthGate() {
-  const { token, setToken, setUserEmail, bookings, setBookings, addNotification } = useAppContext()
+  const { token, setToken, setUserEmail, bookings, setBookings, addNotification, userRoles } = useAppContext()
+  const isAdmin = userRoles.includes("Admin")
 
   if (!token) {
     return (
@@ -32,7 +33,7 @@ function AuthGate() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/org-setup" element={<OrgSetup />} />
+        <Route path="/org-setup" element={isAdmin ? <OrgSetup /> : <Navigate to="/dashboard" replace />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/allocation-transfer" element={<AllocationTransfer />} />
         <Route path="/resource-booking" element={<ResourceBooking bookings={bookings} setBookings={setBookings} onAddNotification={addNotification} />} />

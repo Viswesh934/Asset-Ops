@@ -47,7 +47,7 @@ export default function RegisterAssetModal({
     e.preventDefault()
     if (!name || !categoryId) return
 
-    const success = await registerAsset({
+    const newAsset = await registerAsset({
       name,
       categoryId,
       serialNumber: serialNumber || undefined,
@@ -58,10 +58,21 @@ export default function RegisterAssetModal({
       isBookable,
     })
 
-    if (success) {
-      // Upload attached files if any (the last created asset needs its ID)
-      // registerAsset doesn't return the ID, so we'll upload after closing
-      // For now, just close and reset
+    if (newAsset && newAsset.id) {
+      if (files.length > 0) {
+        setUploadingFiles(true)
+        try {
+          for (let i = 0; i < files.length; i++) {
+            setUploadProgress(Math.round((i / files.length) * 100))
+            await uploadAssetFile(newAsset.id, files[i])
+          }
+          setUploadProgress(100)
+        } catch (err) {
+          console.error("Failed to upload attachments:", err)
+        } finally {
+          setUploadingFiles(false)
+        }
+      }
       resetForm()
       onSuccess?.()
       onClose()
@@ -276,18 +287,18 @@ export default function RegisterAssetModal({
             <button
               type="button"
               onClick={() => { onClose(); resetForm() }}
-              disabled={loading}
+              disabled={loading || uploadingFiles}
               className="px-4 py-2 border border-white/[0.08] hover:bg-white/[0.04] text-slate-300 rounded-lg text-sm transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploadingFiles}
               className="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 disabled:opacity-50 text-white rounded-lg text-sm font-semibold shadow-md flex items-center gap-2 transition-all"
             >
-              {loading && <Loader2 size={14} className="animate-spin" />}
-              {loading ? "Registering..." : "Register Asset"}
+              {(loading || uploadingFiles) && <Loader2 size={14} className="animate-spin" />}
+              {uploadingFiles ? `Uploading (${uploadProgress}%)...` : loading ? "Registering..." : "Register Asset"}
             </button>
           </div>
         </form>
