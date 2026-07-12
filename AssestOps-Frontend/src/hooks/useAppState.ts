@@ -1,6 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Booking, MaintenanceTicket, SystemNotification } from '../types'
+import { useBookingStore } from '../store/bookingStore'
 import { api } from '../utils/api'
+
+function getBookingStartEndDates(dateStr: string, timeSlotStr: string) {
+  try {
+    const [startStr] = timeSlotStr.split("-").map(s => s.trim())
+    const [time, modifier] = startStr.split(" ")
+    let [hoursStr, minutesStr] = time.split(":")
+    let hours = parseInt(hoursStr, 10)
+    let minutes = parseInt(minutesStr, 10) || 0
+    if (modifier === "PM" && hours < 12) {
+      hours += 12
+    }
+    if (modifier === "AM" && hours === 12) {
+      hours = 0
+    }
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day, hours, minutes)
+  } catch (e) {
+    return null
+  }
+}
 
 export function useAppState() {
   // Authentication State
@@ -43,10 +64,10 @@ export function useAppState() {
 
   // Booking and Maintenance are kept as standard mock states (unless integrated in other tasks)
   const [bookings, setBookings] = useState<Booking[]>([
-    { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Confirmed' },
-    { id: 'BK-102', resource: 'Conference Room 4A', user: 'HR Recruitment Team', date: '2026-07-12', timeSlot: '4:00 PM - 5:30 PM', status: 'Confirmed' },
-    { id: 'BK-103', resource: 'Training Room C', user: 'Operations Dept', date: '2026-07-13', timeSlot: '9:00 AM - 1:00 PM', status: 'Pending Approval' },
-    { id: 'BK-104', resource: 'Epson Projector X41 (AF-0062)', user: 'R&D Team Lead', date: '2026-07-13', timeSlot: '2:00 PM - 6:00 PM', status: 'Confirmed' }
+    { id: 'BK-101', resource: 'Meeting Room B2', user: 'Priya Shah', date: '2026-07-12', timeSlot: '2:00 PM - 3:00 PM', status: 'Upcoming' },
+    { id: 'BK-102', resource: 'Conference Room 4A', user: 'HR Recruitment Team', date: '2026-07-12', timeSlot: '4:00 PM - 5:30 PM', status: 'Upcoming' },
+    { id: 'BK-103', resource: 'Training Room C', user: 'Operations Dept', date: '2026-07-13', timeSlot: '9:00 AM - 1:00 PM', status: 'Upcoming' },
+    { id: 'BK-104', resource: 'Epson Projector X41 (AF-0062)', user: 'R&D Team Lead', date: '2026-07-13', timeSlot: '2:00 PM - 6:00 PM', status: 'Ongoing' }
   ])
 
   const [maintenance, setMaintenance] = useState<MaintenanceTicket[]>([
@@ -76,6 +97,43 @@ export function useAppState() {
     })
   }, [])
 
+  // Dynamic Reminder Notification check from Zustand store
+  const storeBookings = useBookingStore(state => state.bookings)
+
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date()
+      storeBookings.forEach((booking) => {
+        if (booking.status !== 'Upcoming') return
+
+        const startObj = getBookingStartEndDates(booking.date, booking.timeSlot)
+        if (!startObj) return
+
+        const diffMs = startObj.getTime() - now.getTime()
+        const fifteenMinutesMs = 15 * 60 * 1000
+
+        // If the booking starts in 15 minutes or less, and hasn't started yet
+        if (diffMs > 0 && diffMs <= fifteenMinutesMs) {
+          // Check if we already have a notification for this booking ID
+          const exists = notifications.some(
+            n => n.title === 'Booking Reminder' && n.message.includes(booking.id)
+          )
+          if (!exists) {
+            addNotification(
+              'warning',
+              'Booking Reminder',
+              `Your reservation ${booking.id} for ${booking.resource} starts in less than 15 minutes (${booking.timeSlot})!`
+            )
+          }
+        }
+      })
+    }
+
+    checkReminders()
+    const timer = setInterval(checkReminders, 15000)
+    return () => clearInterval(timer)
+  }, [storeBookings, notifications, addNotification])
+
   const handleBookResource = useCallback((bookingData: {
     resource: string
     user: string
@@ -89,7 +147,7 @@ export function useAppState() {
         user: bookingData.user,
         date: bookingData.date,
         timeSlot: bookingData.timeSlot,
-        status: 'Confirmed'
+        status: 'Upcoming'
       }
       addNotification('success', 'Resource Booked', `${created.resource} has been booked by ${created.user}.`)
       return [created, ...prev]
@@ -123,6 +181,8 @@ export function useAppState() {
     refetchKey,
     triggerRefetch,
     bookings,
+    setBookings,
+    addNotification,
     maintenance,
     notifications,
     showRegisterModal,

@@ -23,6 +23,7 @@ import dashboardRoutes from "../routes/dashboard"
 import allocationRoutes from "../routes/allocations"
 import transferRoutes from "../routes/transfers"
 import directoryRoutes from "../routes/directories"
+import bookingRoutes from "../routes/bookings"
 import getDepartmentsRoutes from "../routes/organization-setup/getDepartments"
 import getEmployeesRoutes from "../routes/organization-setup/getEmployees"
 import getCategoriesRoutes from "../routes/organization-setup/getCategories"
@@ -125,6 +126,7 @@ app.after(() => {
     fastifyPrivate.register(allocationRoutes)
     fastifyPrivate.register(transferRoutes)
     fastifyPrivate.register(directoryRoutes)
+    fastifyPrivate.register(bookingRoutes)
     fastifyPrivate.register(getDepartmentsRoutes)
     fastifyPrivate.register(getEmployeesRoutes)
     fastifyPrivate.register(getCategoriesRoutes)

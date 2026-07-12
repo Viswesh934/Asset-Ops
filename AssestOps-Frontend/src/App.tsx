@@ -15,7 +15,7 @@ import Login from './pages/Login'
 
 
 function AuthGate() {
-  const { token, setToken, setUserEmail } = useAppContext()
+  const { token, setToken, setUserEmail, bookings, setBookings, addNotification } = useAppContext()
 
   if (!token) {
     return (
@@ -35,7 +35,7 @@ function AuthGate() {
         <Route path="/org-setup" element={<OrgSetup />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/allocation-transfer" element={<AllocationTransfer />} />
-        <Route path="/resource-booking" element={<ResourceBooking />} />
+        <Route path="/resource-booking" element={<ResourceBooking bookings={bookings} setBookings={setBookings} onAddNotification={addNotification} />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/reports" element={<Reports />} />
