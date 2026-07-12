@@ -26,12 +26,21 @@ interface ReturnDetail {
   daysOverdue?: number
 }
 
+interface ActivityItem {
+  id: string
+  type: 'allocation' | 'booking' | 'maintenance'
+  title: string
+  description: string
+  timestamp: string
+}
+
 interface DashboardData {
   role: string
   departmentName?: string | null
   kpis: KPICards
   overdueReturnsList: ReturnDetail[]
   upcomingReturnsList: ReturnDetail[]
+  recentActivities: ActivityItem[]
 }
 
 interface DashboardProps {
@@ -39,6 +48,21 @@ interface DashboardProps {
   onOpenRegister: () => void
   onOpenBook: () => void
   onOpenRequest: () => void
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays === 1) return 'Yesterday'
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function Dashboard({
@@ -341,35 +365,27 @@ export default function Dashboard({
         </h2>
         
         <div className="activity-timeline">
-          <div className="activity-item">
-            <div className="activity-icon-wrapper"><User size={16} /></div>
-            <div className="activity-details">
-              <span className="activity-text">
-                Laptop <strong style={{ color: '#fff' }}>AF-0114</strong> - allocated to <strong>Priya Shah</strong> - IT Department
-              </span>
-              <span className="activity-time">Allocated 2 hours ago</span>
+          {data?.recentActivities && data.recentActivities.length > 0 ? (
+            data.recentActivities.map((act) => {
+              const Icon = act.type === 'allocation' ? User : act.type === 'booking' ? Calendar : Wrench
+              return (
+                <div key={act.id} className="activity-item">
+                  <div className="activity-icon-wrapper"><Icon size={16} /></div>
+                  <div className="activity-details">
+                    <span className="activity-text">
+                      <strong style={{ color: '#fff' }}>{act.title}</strong> - {act.description}
+                    </span>
+                    <span className="activity-time">{formatRelativeTime(act.timestamp)}</span>
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '28px 0', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              <Clock size={20} style={{ color: 'var(--text-muted)' }} />
+              No recent activity recorded.
             </div>
-          </div>
-
-          <div className="activity-item">
-            <div className="activity-icon-wrapper"><Calendar size={16} /></div>
-            <div className="activity-details">
-              <span className="activity-text">
-                Room <strong style={{ color: '#fff' }}>B2</strong> - booking confirmed - <strong>2:00 to 3:00 PM</strong>
-              </span>
-              <span className="activity-time">Booked 4 hours ago</span>
-            </div>
-          </div>
-
-          <div className="activity-item">
-            <div className="activity-icon-wrapper"><Wrench size={16} /></div>
-            <div className="activity-details">
-              <span className="activity-text">
-                Projector <strong style={{ color: '#fff' }}>AF-0062</strong> - maintenance resolved (Bulb replaced)
-              </span>
-              <span className="activity-time">Completed yesterday</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </>
