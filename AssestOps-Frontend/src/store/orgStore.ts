@@ -49,25 +49,37 @@ export const useOrgStore = create<OrgState>((set, get) => ({
   },
 
   initialize: async () => {
+    // Check for pre-existing token in localStorage first
+    const storedToken = localStorage.getItem("token")
+    if (storedToken) {
+      set({ token: storedToken })
+      await get().fetchAll()
+      return
+    }
+
     // Avoid double initialization
     if (get().token || get().loading) return
 
-    set({ loading: true, error: null })
-    try {
-      // Auto login in background for demo purposes since front-end doesn't have login screen yet
-      const res = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@example.com', password: 'admin123' }),
-      })
-      if (!res.ok) {
-        throw new Error('Default auth configuration failed. Ensure backend seed was run.')
+    // Auto login in background for demo/dev purposes in local environment only
+    if (import.meta.env.DEV) {
+      set({ loading: true, error: null })
+      try {
+        const email = import.meta.env.VITE_AUTO_LOGIN_EMAIL || 'admin@example.com'
+        const password = import.meta.env.VITE_AUTO_LOGIN_PASSWORD || 'admin123'
+        const res = await fetch(`${API_BASE_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        })
+        if (!res.ok) {
+          throw new Error('Default auth configuration failed. Ensure backend seed was run.')
+        }
+        const data = await res.json()
+        set({ token: data.accessToken })
+        await get().fetchAll()
+      } catch (err: any) {
+        set({ error: err.message || 'Failed to initialize system state', loading: false })
       }
-      const data = await res.json()
-      set({ token: data.accessToken })
-      await get().fetchAll()
-    } catch (err: any) {
-      set({ error: err.message || 'Failed to initialize system state', loading: false })
     }
   },
 

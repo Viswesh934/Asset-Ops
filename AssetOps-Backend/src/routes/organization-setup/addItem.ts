@@ -101,11 +101,12 @@ export default async function addItemRoutes(fastify: FastifyInstance) {
         fastify.log.error(error)
         
         // Handle database unique constraints, e.g. name or email conflicts
-        if (error.message && error.message.includes("unique")) {
+        const dbCode = error?.code ?? error?.cause?.code
+        if (dbCode === "23505" || (error.message && error.message.includes("unique"))) {
           return reply.code(409).send({ error: "Record with this name or email already exists." })
         }
         
-        return reply.code(500).send({ error: error.message || "Failed to create item" })
+        return reply.code(500).send({ error: "Failed to create item" })
       }
     }
   )

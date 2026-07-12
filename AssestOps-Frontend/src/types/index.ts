@@ -47,7 +47,9 @@ export interface Department {
   id: string
   name: string
   head: string
+  headUserId?: string | null
   parentDept: string
+  parentDepartmentId?: string | null
   status: 'Active' | 'Inactive'
 }
 
@@ -62,8 +64,11 @@ export interface OrgCategory {
 export interface OrgEmployee {
   id: string
   name: string
+  email: string
   department: string
+  departmentId?: string | null
   role: string
   status: 'Active' | 'Inactive'
+  userId?: string
 }
 
