@@ -1,4 +1,6 @@
 import { FastifyRequest } from "fastify"
+import "@fastify/jwt"
+
 
 export interface AuthenticatedUser {
   userId: string

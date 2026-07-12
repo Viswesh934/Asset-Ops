@@ -6,6 +6,10 @@ import rateLimit from "@fastify/rate-limit";
 import helmet from "@fastify/helmet";
 import fastifyJwt from "@fastify/jwt";
 
+import getDepartmentsRoutes from "../routes/Organization setup/getDepartments"
+import getEmployeesRoutes from "../routes/Organization setup/getEmployees"
+import getCategoriesRoutes from "../routes/Organization setup/getCategories"
+import addItemRoutes from "../routes/Organization setup/addItem"
 import { createAppLoggerConfig } from "../lib/logger";
 import authenticate from "../plugins/auth";
 import dbPlugin from "../plugins/dbErrorHandler";
@@ -108,10 +112,15 @@ app.after(() => {
     fastifyPrivate.addHook("preHandler", fastifyPrivate.authenticate);
 
     fastifyPrivate.get("/api/me", async (request) => {
-      return { user: request.user };
-    });
-  });
-});
+      return { user: request.user }
+    })
+
+    fastifyPrivate.register(getDepartmentsRoutes, { prefix: "/api" })
+    fastifyPrivate.register(getEmployeesRoutes, { prefix: "/api" })
+    fastifyPrivate.register(getCategoriesRoutes, { prefix: "/api" })
+    fastifyPrivate.register(addItemRoutes, { prefix: "/api" })
+  })
+})
 
 declare module "fastify" {
   interface FastifyInstance {
