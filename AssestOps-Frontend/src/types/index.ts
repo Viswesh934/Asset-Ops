@@ -7,6 +7,17 @@ export interface Asset {
   serialNo: string
 }
 
+export interface AssetDetail extends Asset {
+  qrCode?: string | null
+  acquisitionDate?: string | null
+  acquisitionCost?: string | null
+  location?: string | null
+  departmentId?: string | null
+  isBookable: boolean
+  activeAllocation?: any
+  history?: any[]
+}
+
 export interface Booking {
   id: string
   resource: string
