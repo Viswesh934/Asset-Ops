@@ -1,6 +1,7 @@
 import { eq, and, ne, or, ilike, sql } from "drizzle-orm"
 import { SupabaseClient } from "@supabase/supabase-js"
 import { DrizzleDb } from "../db/connection"
+import { extractStoragePath } from "./attachmentService"
 import {
   asset,
   resourceBooking,
@@ -593,16 +594,4 @@ export async function updateBookingStatus(
   return updated
 }
 
-function extractStoragePath(publicUrl: string): string | null {
-  const marker = "/storage/v1/object/public/"
-  const idx = publicUrl.indexOf(marker)
-  if (idx === -1) return null
-
-  const rest = publicUrl.slice(idx + marker.length)
-  const slashIdx = rest.indexOf("/")
-  if (slashIdx === -1) return null
-
-  const bucketAndPath = rest.slice(slashIdx + 1)
-  return decodeURIComponent(bucketAndPath)
-}
 
